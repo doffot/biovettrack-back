@@ -4,12 +4,15 @@ import { body, param } from "express-validator";
 import { LabExamController } from "../controllers/LabExamController";
 import { handleInputErrors } from "../middleware/validation";
 
-const router = Router({ mergeParams: true }); // <-- permite leer :patientId
+const router = Router({ mergeParams: true }); // ✅ Permite acceder a :patientId
 
 /* POST /api/patients/:patientId/lab-exams */
 router.post(
   "/",
   param("patientId").isMongoId().withMessage("ID de paciente inválido"),
+  body("date")
+    .optional()
+    .isISO8601().withMessage("La fecha debe ser válida"),
   body("hematocrit")
     .isFloat({ min: 0 })
     .withMessage("Hematocrito debe ser un número positivo"),
@@ -22,15 +25,30 @@ router.post(
   body("platelets")
     .isFloat({ min: 0 })
     .withMessage("Plaquetas deben ser un número positivo"),
-  body("differentialCount.segmentedNeutrophils").isInt({ min: 0, max: 100 }),
-  body("differentialCount.bandNeutrophils").isInt({ min: 0, max: 100 }),
-  body("differentialCount.lymphocytes").isInt({ min: 0, max: 100 }),
-  body("differentialCount.monocytes").isInt({ min: 0, max: 100 }),
-  body("differentialCount.basophils").isInt({ min: 0, max: 100 }),
-  body("differentialCount.reticulocytes").isInt({ min: 0, max: 100 }),
-  body("differentialCount.eosinophils").isInt({ min: 0, max: 100 }),
-  body("differentialCount.nrbc").isInt({ min: 0, max: 100 }),
-  body("totalCells").isInt({ min: 0, max: 100 }),
+  body("totalCells")
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Total de células entre 0 y 100"),
+  body("differentialCount")
+    .isObject().withMessage("Conteo diferencial es obligatorio"),
+  body("differentialCount.segmentedNeutrophils")
+    .isFloat({ min: 0, max: 100 }).optional({ nullable: true }),
+  body("differentialCount.bandNeutrophils")
+    .isFloat({ min: 0, max: 100 }).optional({ nullable: true }),
+  body("differentialCount.lymphocytes")
+    .isFloat({ min: 0, max: 100 }).optional({ nullable: true }),
+  body("differentialCount.monocytes")
+    .isFloat({ min: 0, max: 100 }).optional({ nullable: true }),
+  body("differentialCount.basophils")
+    .isFloat({ min: 0, max: 100 }).optional({ nullable: true }),
+  body("differentialCount.reticulocytes")
+    .isFloat({ min: 0, max: 100 }).optional({ nullable: true }),
+  body("differentialCount.eosinophils")
+    .isFloat({ min: 0, max: 100 }).optional({ nullable: true }),
+  body("differentialCount.nrbc")
+    .isFloat({ min: 0, max: 100 }).optional({ nullable: true }),
+  // ✅ Agregado: campos nuevos, con tu estilo
+  body("hemotropico").optional().isString().withMessage("Hemotrópico debe ser texto"),
+  body("observacion").optional().isString().withMessage("Observación debe ser texto"),
   handleInputErrors,
   LabExamController.createLabExam
 );
@@ -50,7 +68,9 @@ router.get(
 router.put(
   "/:id",
   param("id").isMongoId().withMessage("ID de examen inválido"),
-  // (mismas validaciones opcionales que arriba)
+  // ✅ También en PUT, con tu estilo
+  body("hemotropico").optional().isString().withMessage("Hemotrópico debe ser texto"),
+  body("observacion").optional().isString().withMessage("Observación debe ser texto"),
   handleInputErrors,
   LabExamController.updateLabExam
 );

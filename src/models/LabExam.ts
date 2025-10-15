@@ -19,6 +19,8 @@ export interface ILabExam extends Document {
     nrbc: number;
   };
   totalCells: number;
+  hemotropico: string;      // ✅ Agregado
+  observacion: string;      // ✅ Agregado
 }
 
 const DifferentialSchema = new Schema({
@@ -33,14 +35,16 @@ const DifferentialSchema = new Schema({
 }, { _id: false });
 
 const LabExamSchema: Schema = new Schema({
-  patientId: { type:Types.ObjectId, ref: 'Patient', required: true },
+  patientId: { type: Types.ObjectId, ref: 'Patient', required: true },
   date: { type: Date, default: Date.now },
   hematocrit: { type: Number, required: true, min: 0 },
   whiteBloodCells: { type: Number, required: true, min: 0 },
   totalProtein: { type: Number, required: true, min: 0 },
   platelets: { type: Number, required: true, min: 0 },
   differentialCount: { type: DifferentialSchema, required: true },
-  totalCells: { type: Number, required: true, min: 0, max: 100 }
+  totalCells: { type: Number, required: true, min: 0, max: 100 },
+  hemotropico: { type: String, required: false },   // ✅ Agregado
+  observacion: { type: String, required: false },   // ✅ Agregado
 }, { timestamps: true });
 
 const LabExam = mongoose.model<ILabExam>('LabExam', LabExamSchema);
