@@ -4,6 +4,7 @@ import { body, param } from 'express-validator';
 import { handleInputErrors } from '../middleware/validation';
 import { PatientController } from '../controllers/PatientController';
 import upload from '../middleware/upload';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
 
@@ -105,6 +106,8 @@ router.get(
 );
 
 // ✅ Listar todos los pacientes
-router.get('/', PatientController.getAllPatient);
+router.get('/', 
+  authenticate,
+  PatientController.getAllPatient);
 
 export default router;

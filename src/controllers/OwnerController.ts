@@ -8,8 +8,17 @@ export class OwnerController {
    * (Las validaciones ya fueron hechas por el middleware)
    */
   static createOwner = async (req: Request, res: Response) => {
+    // asigna el veterinario
+    
+    const owner = new Owner(req.body);
+
+      // ✅ Verifica que req.user y req.user._id existan
+  if (!req.user || !req.user._id) {
+    return res.status(400).json({ message: "Usuario no autenticado o sin ID" });
+  }
+
+    owner.veterinarian = req.user._id;
     try {
-      const owner = new Owner(req.body);
       await owner.save();
 
       res.status(201).json({
@@ -30,10 +39,16 @@ export class OwnerController {
  */
 static getAllOwners = async (req: Request, res: Response) => {
   try {
-    const owners = await Owner.find().sort({ createdAt: -1 }); // Los más recientes primero
+    const owners = await Owner.find({
+      $or:[
+        {
+          veterinarian: {$in: req.user._id}
+        }
+      ]
+    }).sort({ createdAt: -1 }); // Los más recientes primero
     res.json(owners);
   } catch (error: any) {
-    console.error('Error en getAllOwners:', error);
+    
     res.status(500).json({
       msg: 'Error interno del servidor'
     });
@@ -56,7 +71,13 @@ static getOwnerById = async (req: Request, res: Response) => {
       });
     }
 
-    res.json(owner); // ← Ahora SÍ incluye las mascotas
+    if(owner.veterinarian.toString() !== req.user._id.toString()){
+       return res.status(404).json({
+        msg: 'Accion no valida'
+      });
+    }
+
+    res.json(owner); 
   } catch (error: any) {
     console.error('Error en getOwnerById:', error);
 
@@ -85,9 +106,15 @@ static updateOwner = async (req: Request, res: Response) => {
       
     );
 
-    if (!updatedOwner) {
+    if (!updatedOwner || !updatedOwner.veterinarian) {
       return res.status(404).json({
         msg: 'Dueño no encontrado'
+      });
+    }
+
+     if(updatedOwner.veterinarian.toString() !== req.user._id.toString()){
+       return res.status(404).json({
+        msg: 'No tienes autorizacion para realizar esta accion'
       });
     }
 
@@ -121,9 +148,15 @@ static deleteOwner = async (req: Request, res: Response) => {
   try {
     const deletedOwner = await Owner.findByIdAndDelete(id);
 
-    if (!deletedOwner) {
+    if (!deletedOwner || !deletedOwner.veterinarian) {
       return res.status(404).json({
         msg: 'Dueño no encontrado'
+      });
+    }
+
+     if(deletedOwner.veterinarian.toString() !== req.user._id.toString()){
+       return res.status(404).json({
+        msg: 'No tienes autorizacion para realizar esta accion'
       });
     }
 

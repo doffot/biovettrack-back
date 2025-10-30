@@ -7,6 +7,7 @@ import ownerRoutes from "./routes/ownerRoutes";
 import patientRoutes from "./routes/patientRoutes";
 import labExamRoutes from "./routes/labExamRoutes";
 import { corsConfig } from "./config/cors";
+import authRoutes from "./routes/authRoutes";
 import { globalGroomingRouter, patientGroomingRouter } from './routes/groomingRoutes';
 
 connectDB();
@@ -18,6 +19,7 @@ app.use(express.json());
 // Rutas principales
 app.use('/api/owners', ownerRoutes);
 app.use('/api/patients', patientRoutes);
+app.use('/api/auth', authRoutes);
 
 // Rutas anidadas: exámenes de laboratorio por paciente
 app.use('/api/patients/:patientId/lab-exams', labExamRoutes);

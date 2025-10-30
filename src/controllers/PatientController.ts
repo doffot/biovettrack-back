@@ -11,6 +11,11 @@ static createPatient = async (req: Request, res: Response) => {
   const patientData = req.body;
 
   try {
+    // ✅ Verifica que req.user y req.user._id existan
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: 'Usuario no autenticado' });
+    }
+
     // 1. Verificar que el Owner exista
     const owner = await Owner.findById(ownerId);
     if (!owner) {
@@ -53,6 +58,7 @@ static createPatient = async (req: Request, res: Response) => {
       ...patientData,
       birthDate, // ← Date real
       owner: ownerId,
+      mainVet: req.user._id, // ✅ ¡Este es el cambio necesario!
       photo: photoUrl
     });
 
@@ -61,23 +67,29 @@ static createPatient = async (req: Request, res: Response) => {
     // 5. Responder con el virtual 'age' incluido
     res.status(201).json({
       msg: 'Paciente creado correctamente',
-      patient: patient.toObject({ virtuals: true }) // ← incluye age
+      patient: patient.toObject({ virtuals: true })
     });
   } catch (error: any) {
     console.error('Error en createPatient:', error);
     return res.status(500).json({ msg: 'Error al crear el paciente' });
   }
 };
- static getAllPatient = async (req: Request, res: Response) => {
+static getAllPatient = async (req: Request, res: Response) => {
   try {
-    // ✅ Sin populate de labExams por ahora
-    const patients = await Patient.find();
-    res.json(patients);
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: 'Usuario no autenticado' });
+    }
+
+    const patients = await Patient.find({
+      mainVet: req.user._id
+    })
+    .sort({ createdAt: -1 });
+    // ⚠️ NO uses .populate('mainVet') aquí
+
+    res.json(patients); // ← mainVet será un string (ObjectId como string)
   } catch (error: any) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ msg: error.message || "Error al obtener pacientes" });
+    console.error('Error en getAllPatient:', error);
+    res.status(500).json({ msg: 'Error al obtener pacientes' });
   }
 };
 

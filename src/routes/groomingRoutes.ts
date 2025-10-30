@@ -4,6 +4,7 @@ import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { handleInputErrors } from '../middleware/validation';
 import { GroomingServiceController } from '../controllers/GroomingServiceController';
+import { authenticate } from '../middleware/auth';
 
 // Validaciones (igual que antes)
 const createGroomingValidation = [ /* ... */ ];
@@ -17,6 +18,7 @@ const globalGroomingRouter = Router();
 // GET /api/grooming → todos los servicios
 globalGroomingRouter.get(
   '/',
+  authenticate,
   GroomingServiceController.getAllGroomingServices
 );
 
@@ -62,6 +64,7 @@ patientGroomingRouter.post(
 // GET /api/patients/:patientId/grooming
 patientGroomingRouter.get(
   '/',
+  
   param('patientId').isMongoId().withMessage('ID de paciente inválido'),
   handleInputErrors,
   GroomingServiceController.getGroomingServicesByPatient

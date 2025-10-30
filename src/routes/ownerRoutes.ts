@@ -6,8 +6,13 @@ import { OwnerController } from '../controllers/OwnerController';
 import { PatientController } from '../controllers/PatientController';
 import upload from '../middleware/upload';
 import { patientValidation } from '../validation/patientValidation';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
+
+router.use(authenticate);
+
+
 
 // Crear dueño
 router.post(
@@ -35,7 +40,6 @@ router.post(
     .isString().withMessage('La dirección debe ser texto')
     .trim()
     .isLength({ max: 200 }).withMessage('La dirección no puede exceder 200 caracteres'),
-
   handleInputErrors,
   OwnerController.createOwner
 );

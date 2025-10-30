@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import GroomingService from "../models/GroomingService";
 import Patient from "../models/Patient";
 import mongoose from "mongoose";
+import Owner from "../models/Owner";
 
 export class GroomingServiceController {
   /* ---------- HELPER: Normalizar fecha para evitar problemas de timezone ---------- */
@@ -77,21 +78,47 @@ export class GroomingServiceController {
   };
 
   /* ---------- OBTENER TODOS LOS SERVICIOS ---------- */
-  static getAllGroomingServices = async (req: Request, res: Response) => {
-    try {
-      const services = await GroomingService.find()
-        .populate({ path: 'patientId', select: 'name species breed' })
-        .sort({ date: -1 });
-
-      res.json({ services });
-    } catch (error: any) {
-      console.error(error);
-      res
-        .status(500)
-        .json({ msg: error.message || "Error al obtener servicios de peluquería" });
+ static getAllGroomingServices = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: 'Usuario no autenticado' });
     }
-  };
 
+    // Paso 1: Obtener IDs de dueños del veterinario autenticado
+    const ownerIds = await Owner.find(
+      { veterinarian: req.user._id },
+      '_id'
+    ).distinct('_id');
+
+    if (ownerIds.length === 0) {
+      return res.json({ services: [] });
+    }
+
+    // Paso 2: Obtener IDs de pacientes de esos dueños
+    const patientIds = await Patient.find(
+      { owner: { $in: ownerIds } },
+      '_id'
+    ).distinct('_id');
+
+    if (patientIds.length === 0) {
+      return res.json({ services: [] });
+    }
+
+    // Paso 3: Obtener servicios de peluquería de esos pacientes
+    const services = await GroomingService.find({
+      patientId: { $in: patientIds }
+    })
+      .populate({ path: 'patientId', select: 'name species breed' })
+      .sort({ date: -1 });
+
+    res.json({ services });
+  } catch (error: any) {
+    console.error('Error en getAllGroomingServices:', error);
+    res.status(500).json({ 
+      msg: error.message || "Error al obtener servicios de peluquería" 
+    });
+  }
+};
   /* ---------- OBTENER UNO POR ID ---------- */
   static getGroomingServiceById = async (req: Request, res: Response) => {
     try {
