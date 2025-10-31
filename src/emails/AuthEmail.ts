@@ -1,4 +1,4 @@
-// src/services/AuthEmail.ts
+/// src/services/AuthEmail.ts
 import { resend } from "../config/resend";
 
 interface Iemail {
@@ -11,7 +11,7 @@ export class AuthEmail {
     static sendConfirmationEmail = async (veterinarian: Iemail) => {
         try {
             const { data, error } = await resend.emails.send({
-                from: 'BioVetTrack <onboarding@resend.dev>', // Puedes cambiar el nombre
+                from: 'BioVetTrack <delivered@resend.dev>', // ✅ Cambiado a dirección de prueba
                 to: veterinarian.email,
                 subject: 'BioVetTrack - Confirma tu cuenta',
                 html: `<p>Hola ${veterinarian.name}, confirma tu cuenta en BioVetTrack.</p>
@@ -36,7 +36,7 @@ export class AuthEmail {
     static sendPasswordResetToken = async (veterinarian: Iemail) => {
         try {
             const { data, error } = await resend.emails.send({
-                from: 'BioVetTrack <onboarding@resend.dev>',
+                from: 'BioVetTrack <delivered@resend.dev>', // ✅ Cambiado a dirección de prueba
                 to: veterinarian.email,
                 subject: 'BioVetTrack - Reestablece tu contraseña',
                 html: `<p>Hola ${veterinarian.name}, has solicitado reestablecer tu contraseña.</p>
