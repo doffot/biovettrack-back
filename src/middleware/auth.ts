@@ -24,7 +24,7 @@ export const authenticate = async (req: Request, res: Response  , next: NextFunc
         const decode = jwt.verify(token, process.env.JWT_SECRET)
 
         if(typeof decode === 'object' && decode.id){
-        const user = await Veterinarian.findById(decode.id).select('_id name email')
+        const user = await Veterinarian.findById(decode.id).select('_id name lastName email')
         if(user){
             req.user = user
              next()
