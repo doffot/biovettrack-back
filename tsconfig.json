@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "typeRoots": ["./node_modules/@types", "./types"],
+   "typeRoots": ["./node_modules/@types"],
     "outDir": "./dist",
     "rootDir": "./src",
     "lib": ["esnext", "dom", "dom.iterable"], // 👈 Agrega "dom" y "dom.iterable"
@@ -13,7 +13,5 @@
     "declaration": true,
     "skipLibCheck": true // 👈 Evita errores en definiciones de tipo de librerías externas
   },
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

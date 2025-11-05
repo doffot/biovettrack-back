@@ -113,22 +113,7 @@ static getAllPatient = async (req: Request, res: Response) => {
       .json({ msg: error.message || "Error al obtener paciente" });
   }
 };
-  // static getPatientById = async (req: Request, res: Response) => {
-  //   try {
-  //     const patient = await Patient.findById(req.params.id)
-      
-  //     if (!patient) {
-  //       res.status(404).json({ msg: "Paciente no encontrado" });
-  //       return;
-  //     }
-  //     res.json(patient); // Aquí sí devolvemos datos porque es vista detalle
-  //   } catch (error: any) {
-  //     console.error(error);
-  //     res
-  //       .status(500)
-  //       .json({ msg: error.message || "Error al obtener paciente" });
-  //   }
-  // };
+ 
 
  
   /* ---------- ELIMINAR ---------- */
