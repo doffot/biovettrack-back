@@ -155,8 +155,24 @@ static getAllAppointments = async (req: Request, res: Response) => {
       return res.status(401).json({ msg: 'Usuario no autenticado' });
     }
 
-    // 🔥 POPULATE CORREGIDO - un solo populate con array
-    const appointments = await Appointment.find()
+    // ✅ Paso 1: Obtener IDs de pacientes del veterinario autenticado
+    const patientIds = await Patient.find(
+      { mainVet: req.user._id },
+      '_id'
+    ).distinct('_id');
+
+    // ✅ Paso 2: Si no tiene pacientes, devolver lista vacía
+    if (patientIds.length === 0) {
+      return res.json({
+        success: true,
+        appointments: []
+      });
+    }
+
+    // ✅ Paso 3: Obtener solo citas de esos pacientes
+    const appointments = await Appointment.find({
+      patient: { $in: patientIds }
+    })
       .populate({
         path: 'patient',
         select: 'name species breed color identification photo birthDate owner mainVet',
@@ -173,9 +189,8 @@ static getAllAppointments = async (req: Request, res: Response) => {
           }
         ]
       })
-      .sort({ date: 1 }); // ✅ Agregar ordenamiento
+      .sort({ date: 1 });
 
-    // Filtrar citas que tienen paciente
     const filteredAppointments = appointments.filter(apt => apt.patient !== null);
 
     res.json({
