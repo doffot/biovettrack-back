@@ -47,7 +47,6 @@ import { CorsOptions } from "cors";
 
 const allowedOrigins = [
   "http://localhost:5173",               // Desarrollo local
-  "https://biovettrack-front-qren.vercel.app", // Vercel temporal
   "https://www.biovettrack.xyz",         // ✅ Tu dominio principal
   "https://biovettrack.xyz",             // ✅ Tu dominio raíz (cuando lo configures)
 ];
