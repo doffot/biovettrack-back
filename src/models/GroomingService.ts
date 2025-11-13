@@ -2,19 +2,23 @@ import mongoose, { Schema, Document } from "mongoose";
 
 // Tipos para el servicio
 export type ServiceType = "Corte" | "Baño" | "Corte y Baño";
-export type PaymentType = "Efectivo" | "Pago Movil" | "Zelle" | "Otro";
-export type CurrencyType = "Bolivares" | "Dolares" | "Ambos";
+export type ServiceStatus = "Programado" | "En progreso" | "Completado" | "Cancelado";
+export type PaymentStatus = "Pendiente" | "Pagado" | "Parcial" | "Cancelado";
 
 // Interfaz IGroomingService
 export interface IGroomingService extends Document {
-  patientId: mongoose.Types.ObjectId; // Referencia al paciente que recibe el servicio
-  service: ServiceType; // 'Corte' o 'Baño' o 'Corte y Baño'
-  specifications: string; // Ej: "Corte de raza", "Baño con shampoo medicado"
-  observations?: string; // Observaciones adicionales del groomer
-  cost: number; // Costo del servicio
-  paymentType: PaymentType; // 'Efectivo', 'Pago Movil', 'Zelle', 'Otro'
-  exchangeRate?: number; // Tasa de cambio (si el pago es en Bs o involucra Bs)
-  date: Date; // Fecha del servicio
+  patientId: mongoose.Types.ObjectId;
+  service: ServiceType;
+  specifications: string;
+  observations?: string;
+  cost: number;
+  paymentMethod: mongoose.Types.ObjectId; // Referencia al método de pago
+  paymentReference?: string; // Número de referencia para transferencias
+  status: ServiceStatus;
+  groomer: mongoose.Types.ObjectId; // Veterinario responsable
+  paymentStatus: PaymentStatus;
+  amountPaid: number;
+  date: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,20 +52,41 @@ const GroomingServiceSchema = new Schema(
       required: [true, "El costo del servicio es obligatorio"],
       min: [0, "El costo no puede ser negativo"],
     },
-    paymentType: {
-      type: String,
-      required: [true, "El tipo de pago es obligatorio"], // CORREGIDO: Valores de enum actualizados para incluir Pago Movil y Zelle
-      enum: ["Efectivo", "Pago Movil", "Zelle", "Otro"],
+    paymentMethod: {
+      type: Schema.Types.ObjectId,
+      ref: "PaymentMethod",
+      required: [true, "El método de pago es obligatorio"]
     },
-    exchangeRate: {
+    paymentReference: {
+      type: String,
+      trim: true
+    },
+    status: {
+      type: String,
+      enum: ["Programado", "En progreso", "Completado", "Cancelado"],
+      default: "Programado",
+      required: true
+    },
+    groomer: {
+      type: Schema.Types.ObjectId,
+      ref: "Veterinarian",
+      required: [true, "El groomer responsable es obligatorio"]
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["Pendiente", "Pagado", "Parcial", "Cancelado"],
+      default: "Pendiente",
+      required: true
+    },
+    amountPaid: {
       type: Number,
-      required: false,
-      min: [0, "La tasa de cambio no puede ser negativa"],
+      default: 0,
+      min: [0, "El monto pagado no puede ser negativo"]
     },
     date: {
       type: Date,
       required: [true, "La fecha del servicio es obligatoria"],
-      default: Date.now, // Valor por defecto si no se especifica
+      default: Date.now,
     },
   },
   {

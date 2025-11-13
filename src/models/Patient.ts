@@ -1,3 +1,4 @@
+// models/Patient.ts
 import mongoose, { Schema, Document } from 'mongoose';
 import { IVeterinarian } from './Veterinarian';
 import { IOwner } from './Owner';
@@ -14,7 +15,7 @@ export type Species =
   | 'Hurón'
   | 'Otro';
 
-// Interfaz IPatient
+// Interfaz IPatient actualizada
 export interface IPatient extends Document {
   name: string;
   birthDate: Date;
@@ -22,15 +23,17 @@ export interface IPatient extends Document {
   species: Species;
   breed?: string;
   weight?: number;
-  owner: mongoose.Types.ObjectId | IOwner; // Referencia al dueño
+  color?: string; // ✅ Nuevo campo
+  identification?: string; // ✅ Nuevo campo (señas/marcas)
+  owner: mongoose.Types.ObjectId | IOwner;
   photo?: string;
-  mainVet: mongoose.Types.ObjectId | IVeterinarian; // ✅ Ahora es ObjectId, no string
-  referringVet?: string; // Opcional: nombre de veterinario referido (texto libre)
+  mainVet: mongoose.Types.ObjectId | IVeterinarian;
+  referringVet?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Esquema
+// Esquema actualizado
 const PatientSchema = new Schema(
   {
     name: {
@@ -69,6 +72,16 @@ const PatientSchema = new Schema(
       type: Number,
       min: [0, 'El peso no puede ser negativo']
     },
+    color: { // ✅ Nuevo campo
+      type: String,
+      trim: true,
+      default: null
+    },
+    identification: { // ✅ Nuevo campo
+      type: String,
+      trim: true,
+      default: null
+    },
     owner: {
       type: Schema.Types.ObjectId,
       ref: 'Owner',
@@ -80,13 +93,11 @@ const PatientSchema = new Schema(
       trim: true,
       default: null
     },
-    
     mainVet: {
       type: Schema.Types.ObjectId,
       ref: 'Veterinarian',
       required: [true, 'El veterinario principal es obligatorio']
     },
-    // referringVet sigue siendo un string opcional (nombre libre)
     referringVet: {
       type: String,
       required: false,
@@ -99,11 +110,8 @@ const PatientSchema = new Schema(
   }
 );
 
-
-
 PatientSchema.set('toJSON', { virtuals: true });
 PatientSchema.set('toObject', { virtuals: true });
 
-// Modelo
 const Patient = mongoose.model<IPatient>('Patient', PatientSchema);
 export default Patient;

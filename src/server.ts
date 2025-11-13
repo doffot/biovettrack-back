@@ -11,6 +11,7 @@ import authRoutes from "./routes/authRoutes";
 import { globalGroomingRouter, patientGroomingRouter } from './routes/groomingRoutes';
 // 👇 Importa tu nuevo router de citas
 import patientAppointmentRouter, { globalAppointmentRouter } from './routes/appointmentRoutes';
+import paymentMethodRoutes from './routes/paymentMethodRoutes';
 
 connectDB();
 
@@ -23,6 +24,7 @@ app.use('/api/owners', ownerRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', globalAppointmentRouter);
+app.use('/api/payment-methods', paymentMethodRoutes);
 
 // Rutas anidadas: exámenes de laboratorio por paciente
 app.use('/api/patients/:patientId/lab-exams', labExamRoutes);

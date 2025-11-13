@@ -1,0 +1,114 @@
+// update-patient-fields.js
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+
+// Cargar variables de entorno
+dotenv.config();
+
+async function updatePatientFields() {
+  try {
+    // Conectar a la base de datos
+    console.log('🔗 Conectando a la base de datos...');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/vetclinic');
+    
+    console.log('✅ Conectado a la base de datos');
+    
+    // Obtener la colección de pacientes
+    const db = mongoose.connection.db;
+    const patientsCollection = db.collection('patients');
+    
+    // Contar pacientes totales
+    const totalPatients = await patientsCollection.countDocuments();
+    console.log(`📊 Total de pacientes encontrados: ${totalPatients}`);
+    
+    // Actualizar pacientes que no tienen los nuevos campos
+    const updateResult = await patientsCollection.updateMany(
+      { 
+        $or: [
+          { color: { $exists: false } },
+          { identification: { $exists: false } }
+        ]
+      },
+      {
+        $set: {
+          color: null,
+          identification: null
+        }
+      }
+    );
+    
+    console.log('\n✅ ACTUALIZACIÓN COMPLETADA:');
+    console.log(`📝 Pacientes que necesitaban actualización: ${updateResult.matchedCount}`);
+    console.log(`🔄 Pacientes actualizados: ${updateResult.modifiedCount}`);
+    
+    // Verificar el resultado
+    if (updateResult.modifiedCount === 0) {
+      console.log('\nℹ️  Todos los pacientes ya tienen los campos color e identification');
+    }
+    
+    // Mostrar estadísticas finales
+    const finalStats = await patientsCollection.aggregate([
+      {
+        $facet: {
+          totalCount: [{ $count: "count" }],
+          withColor: [
+            { $match: { color: { $exists: true } } },
+            { $count: "count" }
+          ],
+          withIdentification: [
+            { $match: { identification: { $exists: true } } },
+            { $count: "count" }
+          ],
+          withColorNotNull: [
+            { $match: { color: { $ne: null } } },
+            { $count: "count" }
+          ],
+          withIdentificationNotNull: [
+            { $match: { identification: { $ne: null } } },
+            { $count: "count" }
+          ]
+        }
+      }
+    ]).toArray();
+    
+    const stats = finalStats[0];
+    const total = stats.totalCount[0]?.count || 0;
+    const withColor = stats.withColor[0]?.count || 0;
+    const withIdentification = stats.withIdentification[0]?.count || 0;
+    const withColorNotNull = stats.withColorNotNull[0]?.count || 0;
+    const withIdentificationNotNull = stats.withIdentificationNotNull[0]?.count || 0;
+    
+    console.log('\n📈 ESTADÍSTICAS FINALES:');
+    console.log(`👥 Total de pacientes: ${total}`);
+    console.log(`🎨 Con campo color: ${withColor} (${((withColor/total)*100).toFixed(1)}%)`);
+    console.log(`📋 Con campo identification: ${withIdentification} (${((withIdentification/total)*100).toFixed(1)}%)`);
+    console.log(`🟢 Con color no nulo: ${withColorNotNull} (${((withColorNotNull/total)*100).toFixed(1)}%)`);
+    console.log(`🔵 Con identificación no nula: ${withIdentificationNotNull} (${((withIdentificationNotNull/total)*100).toFixed(1)}%)`);
+    
+    // Mostrar algunos ejemplos
+    console.log('\n📋 EJEMPLOS DE PACIENTES ACTUALIZADOS:');
+    const samplePatients = await patientsCollection.find({}).limit(5).toArray();
+    
+    samplePatients.forEach((patient, index) => {
+      console.log(`   ${index + 1}. ${patient.name}:`);
+      console.log(`      - Color: ${patient.color || 'null'}`);
+      console.log(`      - Identificación: ${patient.identification || 'null'}`);
+    });
+    
+    console.log('\n🎉 ¡Base de datos actualizada exitosamente!');
+    
+  } catch (error) {
+    console.error('❌ ERROR durante la actualización:', error);
+    console.error('Detalles:', error.message);
+  } finally {
+    // Cerrar conexión
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close();
+      console.log('\n🔒 Conexión a la base de datos cerrada');
+    }
+    process.exit(0);
+  }
+}
+
+// Ejecutar la función principal
+updatePatientFields();

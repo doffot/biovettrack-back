@@ -112,4 +112,84 @@ static updateAppointmentStatus = async (req: Request, res: Response) => {
   }
 };
 
+
+static getAppointmentsByPatient = async (req: Request, res: Response) => {
+  const { patientId } = req.params;
+
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: 'Usuario no autenticado' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ msg: 'ID de paciente inválido' });
+    }
+
+    // Verificar que el paciente existe y pertenece al veterinario
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({ msg: 'Paciente no encontrado' });
+    }
+
+    if (patient.mainVet.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ msg: 'No tienes permiso para ver este paciente' });
+    }
+
+    // Obtener citas del paciente ordenadas por fecha (más recientes primero)
+    const appointments = await Appointment.find({ patient: patientId })
+      .sort({ date: -1 }) // Ordenar por fecha descendente (más recientes primero)
+      .lean();
+
+    res.json(appointments);
+
+  } catch (error: any) {
+    console.error('Error en getAppointmentsByPatient:', error);
+    res.status(500).json({ msg: 'Error al obtener citas' });
+  }
+};
+
+// src/controllers/AppointmentController.ts
+static getAllAppointments = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: 'Usuario no autenticado' });
+    }
+
+    // 🔥 POPULATE CORREGIDO - un solo populate con array
+    const appointments = await Appointment.find()
+      .populate({
+        path: 'patient',
+        select: 'name species breed color identification photo birthDate owner mainVet',
+        populate: [
+          {
+            path: 'owner',
+            select: 'name lastName email contact address',
+            model: 'Owner'
+          },
+          {
+            path: 'mainVet', 
+            select: 'name lastName specialty',
+            model: 'Veterinarian'
+          }
+        ]
+      })
+      .sort({ date: 1 }); // ✅ Agregar ordenamiento
+
+    // Filtrar citas que tienen paciente
+    const filteredAppointments = appointments.filter(apt => apt.patient !== null);
+
+    res.json({
+      success: true,
+      appointments: filteredAppointments
+    });
+
+  } catch (error: any) {
+    console.error('Error en getAllAppointments:', error);
+    res.status(500).json({ 
+      success: false,
+      msg: 'Error al obtener las citas' 
+    });
+  }
+};
+
 }

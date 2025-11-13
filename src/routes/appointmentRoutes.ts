@@ -48,11 +48,24 @@ patientAppointmentRouter.post(
   AppointmentController.createAppointment
 );
 
+patientAppointmentRouter.get(
+  '/',
+  authenticate,
+  AppointmentController.getAppointmentsByPatient
+);
+
 // Exportar router anidado
 export default patientAppointmentRouter;
 
 // ✅ Router global (para operaciones que no dependen de patientId)
 export const globalAppointmentRouter = Router();
+
+// GET /api/appointments - OBTENER TODAS LAS CITAS
+globalAppointmentRouter.get(
+  '/',
+  authenticate,
+  AppointmentController.getAllAppointments // Necesitas crear este controlador
+);
 
 // PATCH /api/appointments/:id/status
 globalAppointmentRouter.patch(

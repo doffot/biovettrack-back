@@ -55,15 +55,23 @@ const optionalPatientValidation = [
     .optional()
     .isFloat({ min: 0 }).withMessage('El peso debe ser positivo'),
 
+  body('color') // ✅ Nuevo campo
+    .optional()
+    .isString().withMessage('El color debe ser texto')
+    .trim(),
+
+  body('identification') // ✅ Nuevo campo
+    .optional()
+    .isString().withMessage('La identificación debe ser texto')
+    .trim(),
+
   body('owner')
     .optional()
     .isMongoId().withMessage('ID de dueño no válido'),
 
   body('mainVet')
     .optional()
-    .notEmpty().withMessage('El veterinario principal no puede estar vacío')
-    .isString().withMessage('El veterinario principal debe ser texto')
-    .trim(),
+    .isMongoId().withMessage('ID de veterinario no válido'), // ✅ Cambiado a isMongoId
 
   body('referringVet')
     .optional()
