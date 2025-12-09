@@ -12,8 +12,6 @@ const router = Router();
 
 router.use(authenticate);
 
-
-
 // Crear dueño
 router.post(
   '/',
@@ -21,8 +19,7 @@ router.post(
     .notEmpty().withMessage('El nombre del dueño es obligatorio')
     .isString().withMessage('El nombre debe ser texto')
     .trim()
-    .isLength({ min: 2 }).withMessage('El nombre debe tener al menos 2 caracteres')
-    .isLength({ max: 100 }).withMessage('El nombre no puede exceder 100 caracteres'),
+    .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres'),
 
   body('contact')
     .notEmpty().withMessage('El contacto (teléfono) es obligatorio')
@@ -31,15 +28,23 @@ router.post(
     .withMessage('Por favor ingrese un número de contacto válido (ej: +54 9 11 1234-5678)'),
 
   body('email')
-    .optional()
+    .optional({ nullable: true })
     .isEmail().withMessage('Formato de email inválido')
     .normalizeEmail(),
 
+  body('nationalId')
+    .optional({ nullable: true })
+    .isString().withMessage('El ID nacional debe ser texto')
+    .trim()
+    .isLength({ max: 20 }).withMessage('El ID nacional no puede exceder 20 caracteres'),
+    
+
   body('address')
-    .optional()
+    .optional({ nullable: true })
     .isString().withMessage('La dirección debe ser texto')
     .trim()
     .isLength({ max: 200 }).withMessage('La dirección no puede exceder 200 caracteres'),
+
   handleInputErrors,
   OwnerController.createOwner
 );
@@ -59,26 +64,32 @@ router.get(
 router.put(
   '/:id',
   param('id').isMongoId().withMessage('ID no válido'),
+
   body('name')
-    .notEmpty().withMessage('El nombre del dueño es obligatorio')
+    .optional()
     .isString().withMessage('El nombre debe ser texto')
     .trim()
-    .isLength({ min: 2 }).withMessage('El nombre debe tener al menos 2 caracteres')
-    .isLength({ max: 100 }).withMessage('El nombre no puede exceder 100 caracteres'),
+    .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres'),
 
   body('contact')
-    .notEmpty().withMessage('El contacto (teléfono) es obligatorio')
+    .optional()
     .isString().withMessage('El contacto debe ser texto')
     .matches(/^[\+]?[0-9\s\-\(\)]+$/)
     .withMessage('Por favor ingrese un número de contacto válido'),
 
   body('email')
-    .optional()
+    .optional({ nullable: true })
     .isEmail().withMessage('Formato de email inválido')
     .normalizeEmail(),
 
+  body('nationalId')
+    .optional({ nullable: true })
+    .isString().withMessage('El ID nacional debe ser texto')
+    .trim()
+    .isLength({ max: 20 }).withMessage('El ID nacional no puede exceder 20 caracteres'),
+
   body('address')
-    .optional()
+    .optional({ nullable: true })
     .isString().withMessage('La dirección debe ser texto')
     .trim()
     .isLength({ max: 200 }).withMessage('La dirección no puede exceder 200 caracteres'),

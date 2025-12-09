@@ -47,8 +47,8 @@ import { CorsOptions } from "cors";
 
 const allowedOrigins = [
   "http://localhost:5173",               // Desarrollo local
-  "https://www.biovettrack.xyz",         // ✅ Tu dominio principal
-  "https://biovettrack.xyz",             // ✅ Tu dominio raíz (cuando lo configures)
+  "https://www.biovettrack.xyz",         // ✅  dominio principal
+  "https://biovettrack.xyz",             // ✅  dominio raíz (cuando lo configures)
 ];
 
 export const corsConfig: CorsOptions = {

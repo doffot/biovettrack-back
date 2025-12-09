@@ -1,10 +1,9 @@
-// controllers/GroomingServiceController.ts
 import type { Request, Response } from "express";
 import GroomingService from "../models/GroomingService";
 import Patient from "../models/Patient";
-import PaymentMethod from "../models/PaymentMethod";
 import mongoose from "mongoose";
-import Owner from "../models/Owner";
+import Staff from "../models/Staff";
+import Invoice from "../models/Invoice"; // 👈 Importación añadida
 
 export class GroomingServiceController {
   /* ---------- HELPER: Normalizar fecha para evitar problemas de timezone ---------- */
@@ -20,6 +19,18 @@ export class GroomingServiceController {
       : dateInput.toISOString().split('T')[0];
     
     return new Date(dateStr + 'T12:00:00');
+  }
+
+  private static async getOwnerStaff(veterinarianId: mongoose.Types.ObjectId) {
+    const ownerStaff = await Staff.findOne({
+      veterinarianId,
+      isOwner: true,
+      active: true
+    });
+    if (!ownerStaff) {
+      throw new Error("Perfil de staff del dueño no encontrado");
+    }
+    return ownerStaff;
   }
 
   /* ---------- CREAR SERVICIO DE GROOMING ---------- */
@@ -46,32 +57,47 @@ export class GroomingServiceController {
         return res.status(404).json({ msg: 'Paciente no encontrado' });
       }
 
-      // Verificar que el método de pago pertenece al veterinario
-      if (serviceData.paymentMethod) {
-        const paymentMethod = await PaymentMethod.findOne({
-          _id: serviceData.paymentMethod,
-          veterinarian: req.user._id
-        });
-        
-        if (!paymentMethod) {
-          return res.status(400).json({ msg: 'Método de pago no válido' });
-        }
-      }
+      // ✅ Obtener el Staff del dueño para asignar como groomer
+      const ownerStaff = await GroomingServiceController.getOwnerStaff(req.user._id);
 
       const groomingService = new GroomingService({
         ...serviceData,
         patientId: patientId,
-        groomer: req.user._id, // El veterinario autenticado es el groomer
+        groomer: ownerStaff._id, 
         date: GroomingServiceController.normalizeDate(serviceData.date),
       });
 
       await groomingService.save();
 
-      // Populate para la respuesta
+      // 👇 CREAR FACTURA AUTOMÁTICAMENTE (solo para pacientes propios)
+      try {
+        const invoice = new Invoice({
+          ownerId: patient.owner, // 👈 Dueño del paciente
+          patientId: patientId,
+          items: [{
+            type: "grooming",
+            resourceId: groomingService._id,
+            description: `${groomingService.service} - ${patient.name}`,
+            cost: groomingService.cost, // 👈 Siempre en USD
+            quantity: 1,
+          }],
+          currency: "USD", // 👈 Grooming siempre en USD
+          total: groomingService.cost,
+          amountPaid: 0,
+          paymentStatus: "Pendiente", // 👈 Siempre pendiente
+          date: new Date(),
+          veterinarianId: req.user._id,
+        });
+        await invoice.save();
+      } catch (invoiceError) {
+        console.error("⚠️ Error al crear factura para grooming:", invoiceError);
+        // No fallamos la creación del servicio si la factura falla
+      }
+
+      // Populate sin paymentMethod
       const populatedService = await GroomingService.findById(groomingService._id)
         .populate('patientId')
-        .populate('paymentMethod')
-        .populate('groomer');
+        .populate('groomer'); 
 
       res.status(201).json({
         msg: 'Servicio de peluquería registrado correctamente',
@@ -100,7 +126,6 @@ export class GroomingServiceController {
         return res.status(400).json({ msg: 'ID de paciente inválido' });
       }
 
-      // Verificar que el paciente pertenece al veterinario
       const patient = await Patient.findOne({
         _id: patientId,
         mainVet: req.user._id
@@ -112,8 +137,7 @@ export class GroomingServiceController {
 
       const services = await GroomingService.find({ patientId: patientId })
         .populate('patientId')
-        .populate('paymentMethod')
-        .populate('groomer')
+        .populate('groomer') // ✅
         .sort({ date: -1 });
         
       res.json({ services });
@@ -129,7 +153,6 @@ export class GroomingServiceController {
         return res.status(401).json({ msg: 'Usuario no autenticado' });
       }
 
-      // Obtener pacientes del veterinario autenticado
       const patientIds = await Patient.find(
         { mainVet: req.user._id },
         '_id'
@@ -139,13 +162,11 @@ export class GroomingServiceController {
         return res.json({ services: [] });
       }
 
-      // Obtener servicios de peluquería de esos pacientes
       const services = await GroomingService.find({
         patientId: { $in: patientIds }
       })
         .populate('patientId')
-        .populate('paymentMethod')
-        .populate('groomer')
+        .populate('groomer') // ✅
         .sort({ date: -1 });
 
       res.json({ services });
@@ -164,19 +185,17 @@ export class GroomingServiceController {
         return res.status(401).json({ msg: 'Usuario no autenticado' });
       }
 
-     const service = await GroomingService.findById(req.params.id)
-  .populate({
-    path: 'patientId',
-    populate: { path: 'owner' } 
-  })
-  .populate('paymentMethod')
-  .populate('groomer');
+      const service = await GroomingService.findById(req.params.id)
+        .populate({
+          path: 'patientId',
+          populate: { path: 'owner' } 
+        })
+        .populate('groomer'); // ✅
       
       if (!service) {
         return res.status(404).json({ msg: "Servicio no encontrado" });
       }
 
-      // Verificar que el servicio pertenece al veterinario
       const patient = await Patient.findOne({
         _id: service.patientId,
         mainVet: req.user._id
@@ -203,7 +222,6 @@ export class GroomingServiceController {
         return res.status(401).json({ msg: 'Usuario no autenticado' });
       }
 
-      // Verificar que el servicio existe y pertenece al veterinario
       const existingService = await GroomingService.findById(id)
         .populate('patientId');
       
@@ -220,16 +238,10 @@ export class GroomingServiceController {
         return res.status(403).json({ msg: "No tienes permiso para actualizar este servicio" });
       }
 
-      // Verificar método de pago si se está actualizando
-      if (serviceData.paymentMethod) {
-        const paymentMethod = await PaymentMethod.findOne({
-          _id: serviceData.paymentMethod,
-          veterinarian: req.user._id
-        });
-        
-        if (!paymentMethod) {
-          return res.status(400).json({ msg: 'Método de pago no válido' });
-        }
+      // ✅ Si no se envía groomer, usamos el del dueño (consistente con create)
+      if (!serviceData.groomer) {
+        const ownerStaff = await GroomingServiceController.getOwnerStaff(req.user._id);
+        serviceData.groomer = ownerStaff._id;
       }
 
       // Normalizar fecha si se está actualizando
@@ -242,8 +254,7 @@ export class GroomingServiceController {
         runValidators: true,
       })
         .populate('patientId')
-        .populate('paymentMethod')
-        .populate('groomer');
+        .populate('groomer'); // ✅
 
       res.json({ 
         msg: "Servicio de peluquería actualizado correctamente", 
@@ -266,7 +277,6 @@ export class GroomingServiceController {
         return res.status(401).json({ msg: 'Usuario no autenticado' });
       }
 
-      // Verificar que el servicio pertenece al veterinario
       const existingService = await GroomingService.findById(req.params.id)
         .populate('patientId');
       
@@ -283,7 +293,7 @@ export class GroomingServiceController {
         return res.status(403).json({ msg: "No tienes permiso para eliminar este servicio" });
       }
 
-      const deleted = await GroomingService.findByIdAndDelete(req.params.id);
+      await GroomingService.findByIdAndDelete(req.params.id);
       
       res.json({ msg: "Servicio de peluquería eliminado correctamente" });
     } catch (error: any) {

@@ -2,7 +2,20 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ILabExam extends Document {
-  patientId: Types.ObjectId;
+  vetId: Types.ObjectId;
+  patientId?: Types.ObjectId; // Opcional
+  patientName: string;        s
+  species: string;           
+  breed?: string;
+  sex?: string;
+  age?: string;
+  weight?: number;
+
+
+  cost: number;
+
+  // Datos del examen
+  treatingVet?: string;
   date: Date;
   hematocrit: number;
   whiteBloodCells: number;
@@ -19,8 +32,15 @@ export interface ILabExam extends Document {
     nrbc: number;
   };
   totalCells: number;
-  hemotropico: string;      // ✅ Agregado
-  observacion: string;      // ✅ Agregado
+  hemotropico?: string;
+  observacion?: string;
+
+ 
+  ownerName?: string;   
+  ownerPhone?: string; 
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const DifferentialSchema = new Schema({
@@ -35,16 +55,68 @@ const DifferentialSchema = new Schema({
 }, { _id: false });
 
 const LabExamSchema: Schema = new Schema({
-  patientId: { type: Types.ObjectId, ref: 'Patient', required: true },
-  date: { type: Date, default: Date.now },
+  vetId: { 
+    type: Types.ObjectId, 
+    ref: 'Veterinarian',
+    required: true 
+  },
+
+  patientId: {
+    type: Types.ObjectId,
+    ref: 'Patient',
+    required: false // 👈 Opcional
+  },
+
+  patientName: { 
+    type: String, 
+    required: [true, "El nombre del paciente es obligatorio"], 
+    trim: true 
+  },
+  species: { 
+    type: String, 
+    required: [true, "La especie es obligatoria"], 
+    trim: true 
+  },
+  breed: { type: String, trim: true },
+  sex: { type: String, trim: true },
+  age: { type: String, trim: true },
+  weight: { type: Number, min: 0 },
+
+  
+  cost: {
+    type: Number,
+    required: [true, "El costo del examen es obligatorio"],
+    min: [0, "El costo no puede ser negativo"]
+  },
+
+  treatingVet: { type: String, trim: true },
+  date: { type: Date, required: true, default: Date.now },
+  
   hematocrit: { type: Number, required: true, min: 0 },
   whiteBloodCells: { type: Number, required: true, min: 0 },
   totalProtein: { type: Number, required: true, min: 0 },
   platelets: { type: Number, required: true, min: 0 },
   differentialCount: { type: DifferentialSchema, required: true },
   totalCells: { type: Number, required: true, min: 0, max: 100 },
-  hemotropico: { type: String, required: false },   // ✅ Agregado
-  observacion: { type: String, required: false },   // ✅ Agregado
+  hemotropico: { type: String, trim: true },
+  observacion: { type: String, trim: true },
+
+  // 👇 Solo si es paciente referido
+  ownerName: {
+    type: String,
+    trim: true,
+    required: function(this: any) {
+      return !this.patientId; // Obligatorio solo si no hay patientId
+    },
+    validate: {
+      validator: (value: string) => value?.trim().length > 0,
+      message: "El nombre del dueño es obligatorio para pacientes referidos"
+    }
+  },
+  ownerPhone: {
+    type: String,
+    trim: true
+  },
 }, { timestamps: true });
 
 const LabExam = mongoose.model<ILabExam>('LabExam', LabExamSchema);

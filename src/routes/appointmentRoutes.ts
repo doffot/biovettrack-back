@@ -48,6 +48,7 @@ patientAppointmentRouter.post(
   AppointmentController.createAppointment
 );
 
+// GET /api/patients/:patientId/appointments
 patientAppointmentRouter.get(
   '/',
   authenticate,
@@ -64,7 +65,16 @@ export const globalAppointmentRouter = Router();
 globalAppointmentRouter.get(
   '/',
   authenticate,
-  AppointmentController.getAllAppointments // Necesitas crear este controlador
+  AppointmentController.getAllAppointments
+);
+
+// GET /api/appointments/:id - OBTENER CITA POR ID
+globalAppointmentRouter.get(
+  '/:id',
+  authenticate,
+  param('id').isMongoId().withMessage('ID de cita inválido'),
+  handleInputErrors,
+  AppointmentController.getAppointmentById
 );
 
 // PATCH /api/appointments/:id/status
@@ -74,4 +84,45 @@ globalAppointmentRouter.patch(
   ...updateStatusValidation,
   handleInputErrors,
   AppointmentController.updateAppointmentStatus
+);
+
+// DELETE /api/appointments/:id - ELIMINAR CITA
+globalAppointmentRouter.delete(
+  '/:id',
+  authenticate,
+  param('id').isMongoId().withMessage('ID de cita inválido'),
+  handleInputErrors,
+  AppointmentController.deleteAppointment
+);
+
+// GET /api/appointments/date/:date - CITAS POR FECHA
+globalAppointmentRouter.get(
+  '/date/:date',
+  authenticate,
+  AppointmentController.getAppointmentsByDateForVeterinarian
+);
+
+// PATCH /api/appointments/:id
+globalAppointmentRouter.patch(
+  '/:id',
+  authenticate,
+  body('type')
+    .notEmpty().withMessage('El tipo de cita es obligatorio')
+    .isIn(['Consulta', 'Peluquería', 'Laboratorio', 'Vacuna', 'Cirugía', 'Tratamiento'])
+    .withMessage('Tipo de cita no válido'),
+  body('date')
+    .notEmpty().withMessage('La fecha es obligatoria')
+    .isISO8601().withMessage('Formato de fecha inválido'),
+  body('reason')
+    .notEmpty().withMessage('El motivo es obligatorio')
+    .isString().withMessage('El motivo debe ser texto')
+    .trim()
+    .isLength({ min: 2, max: 200 }).withMessage('El motivo debe tener entre 2 y 200 caracteres'),
+  body('observations')
+    .optional()
+    .isString().withMessage('Las observaciones deben ser texto')
+    .trim()
+    .isLength({ max: 500 }).withMessage('Las observaciones no pueden exceder 500 caracteres'),
+  handleInputErrors,
+  AppointmentController.updateAppointment
 );

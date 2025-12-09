@@ -6,43 +6,62 @@ import Token from "../models/token";
 import { generateToken } from "../utils/token";
 import { AuthEmail } from "../emails/AuthEmail";
 import { generateJWT } from "../utils/jwt";
+import Staff from "../models/Staff";
 
 export class AuthController {
-  static createAccount = async (req: Request, res: Response) => {
-    try {
-      const { password, email } = req.body;
-      // prevenir duplicado
-      const veterinarianExists = await Veterinarian.findOne({ email });
-      if (veterinarianExists) {
-        const error = new Error("Veterinario ya Resgistrado");
-        return res.status(409).json({ error: error.message });
-      }
-      const veterinarian = new Veterinarian(req.body);
+ static createAccount = async (req: Request, res: Response) => {
+  try {
+    const { password, email } = req.body;
 
-      //hash password
-      veterinarian.password = await hashPassword(password);
-
-      //generar token
-      const token = new Token();
-      token.token = generateToken();
-      token.veterinarian = veterinarian.id;
-
-      //enviar email
-      AuthEmail.sendConfirmationEmail({
-        email: veterinarian.email,
-        name: veterinarian.name,
-        token: token.token,
-      });
-
-      await Promise.allSettled([token.save(), veterinarian.save()]);
-
-      res.send(
-        "Cuenta creada correctamente revisa tu email para confirmalas credenciales"
-      );
-    } catch (error) {
-      res.status(500).json({ error: "Error al crear cuenta" });
+    // Prevenir duplicado
+    const veterinarianExists = await Veterinarian.findOne({ email });
+    if (veterinarianExists) {
+      const error = new Error("Veterinario ya Registrado");
+      return res.status(409).json({ error: error.message });
     }
-  };
+
+    const veterinarian = new Veterinarian(req.body);
+    veterinarian.password = await hashPassword(password);
+
+    // Generar token
+    const token = new Token();
+    token.token = generateToken();
+    token.veterinarian = veterinarian.id;
+
+    // Enviar email
+    AuthEmail.sendConfirmationEmail({
+      email: veterinarian.email,
+      name: veterinarian.name,
+      token: token.token,
+    });
+
+    // 👇 Guardamos SOLO lo que ya funcionaba
+    await veterinarian.save();
+    await token.save();
+
+    // ✅ AHORA SÍ: Creamos el Staff, pero SOLO si el veterinario ya existe
+    try {
+      const staff = new Staff({
+        name: veterinarian.name,
+        lastName: veterinarian.lastName,
+        role: "veterinario",
+        isOwner: true,
+        veterinarianId: veterinarian._id,
+        phone: veterinarian.whatsapp || undefined,
+        active: true,
+      });
+      await staff.save(); // No afecta si falla
+    } catch (staffError) {
+      // Opcional: loggear, pero NO romper el registro
+      console.warn("No se pudo crear la entrada de Staff para el dueño:", staffError);
+    }
+
+    res.send("Cuenta creada correctamente revisa tu email para confirmar las credenciales");
+  } catch (error) {
+    console.error("Error en createAccount:", error);
+    res.status(500).json({ error: "Error al crear cuenta" });
+  }
+};
 
   static confirmAccount = async (req: Request, res: Response) => {
     try {

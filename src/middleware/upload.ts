@@ -40,4 +40,14 @@ const upload = multer({
   }
 });
 
+// Función para eliminar archivos temporales
+export const deleteTempFile = async (filePath: string) => {
+  try {
+    await fs.promises.unlink(filePath);
+    console.log(`✅ Archivo temporal eliminado: ${filePath}`);
+  } catch (error) {
+    console.error('Error eliminando archivo temporal:', error);
+  }
+};
+
 export default upload;

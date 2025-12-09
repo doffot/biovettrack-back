@@ -5,13 +5,18 @@ import { connectDB } from "./config/db";
 import cors from "cors";
 import ownerRoutes from "./routes/ownerRoutes";
 import patientRoutes from "./routes/patientRoutes";
-import labExamRoutes from "./routes/labExamRoutes";
+import labExamRoutes from "./routes/labExamRoutes"; // ← importado
 import { corsConfig } from "./config/cors";
 import authRoutes from "./routes/authRoutes";
 import { globalGroomingRouter, patientGroomingRouter } from './routes/groomingRoutes';
-// 👇 Importa tu nuevo router de citas
 import patientAppointmentRouter, { globalAppointmentRouter } from './routes/appointmentRoutes';
 import paymentMethodRoutes from './routes/paymentMethodRoutes';
+import staffRouter from './routes/staffRoutes';
+import invoiceRouter from './routes/invoiceRoutes';
+import medicalStudyRouter from './routes/medicalStudyRoutes';
+import vaccinationRouter from './routes/vaccinationRoutes';
+import dewormingRouter from './routes/dewormingRoutes';
+import consultationRouter from './routes/consultationRoutes';
 
 connectDB();
 
@@ -25,15 +30,23 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', globalAppointmentRouter);
 app.use('/api/payment-methods', paymentMethodRoutes);
+app.use("/api/staff", staffRouter);
+app.use("/api/invoices", invoiceRouter);
+app.use("/api/medical-studies", medicalStudyRouter);
+app.use("/api/vaccinations", vaccinationRouter);
+app.use("/api/dewormings", dewormingRouter);
+app.use("/api/consultations", consultationRouter);
 
-// Rutas anidadas: exámenes de laboratorio por paciente
+app.use('/api/lab-exams', labExamRoutes);
+
+
 app.use('/api/patients/:patientId/lab-exams', labExamRoutes);
 
-// ✅ Rutas de peluquería
+// Rutas de peluquería
 app.use('/api/grooming', globalGroomingRouter);
 app.use('/api/patients/:patientId/grooming', patientGroomingRouter);
 
-// ✅ Rutas de citas (igual que peluquería)
+// Rutas de citas
 app.use('/api/patients/:patientId/appointments', patientAppointmentRouter);
 
 export default app;

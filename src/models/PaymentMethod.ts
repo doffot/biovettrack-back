@@ -55,7 +55,6 @@ const PaymentMethodSchema = new Schema(
   }
 );
 
-// ✅ Índice compuesto - mismo nombre pero diferente veterinario
-PaymentMethodSchema.index({ name: 1, veterinarian: 1 }, { unique: true });
+
 
 export default mongoose.model<IPaymentMethod>("PaymentMethod", PaymentMethodSchema);

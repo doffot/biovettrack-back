@@ -1,17 +1,16 @@
-import mongoose, { Schema, Document, PopulatedDoc, Types } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 import { IVeterinarian } from "./Veterinarian";
 
-/**
- * Interfaz para el documento Owner
- */
+
 export interface IOwner extends Document {
   name: string;
   contact: string;
   email?: string;
   address?: string;
+  nationalId?: string; 
   createdAt: Date;
   updatedAt: Date;
- veterinarian?: mongoose.Types.ObjectId | IVeterinarian; 
+  veterinarian?: Types.ObjectId | IVeterinarian;
 }
 
 const OwnerSchema: Schema = new Schema(
@@ -44,9 +43,17 @@ const OwnerSchema: Schema = new Schema(
       trim: true,
       maxlength: [200, "La dirección no puede exceder 200 caracteres"]
     },
+    nationalId: {
+      type: String,
+      required: false, // ← Puedes cambiar a `true` si es obligatorio
+      trim: true,
+      unique: true, 
+     
+     
+    },
     veterinarian: {
       type: Types.ObjectId,
-      ref: "Veterinarian",
+      ref: "Veterinarian"
     }
   },
   {
@@ -54,21 +61,20 @@ const OwnerSchema: Schema = new Schema(
   }
 );
 
+// Virtual para mascotas
 OwnerSchema.virtual("pets", {
-  ref: "Patient", // Nombre del modelo relacionado
-  localField: "_id", // Campo en Owner
-  foreignField: "ownerId", // Campo en Patient que referencia a Owner
-  justOne: false // Queremos un array de mascotas
+  ref: "Patient",
+  localField: "_id",
+  foreignField: "ownerId",
+  justOne: false
 });
+
 
 OwnerSchema.set("toJSON", { virtuals: true });
 OwnerSchema.set("toObject", { virtuals: true });
 
-/**
- * Índices para búsquedas eficientes
- */
-OwnerSchema.index({ name: "text", contact: "text" }); // Búsqueda global
-OwnerSchema.index({ email: 1 }, { unique: true, sparse: true }); // Único si existe
+
+
 
 const Owner = mongoose.model<IOwner>("Owner", OwnerSchema);
 export default Owner;

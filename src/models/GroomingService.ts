@@ -1,29 +1,25 @@
+// src/models/GroomingService.ts
 import mongoose, { Schema, Document } from "mongoose";
 
 // Tipos para el servicio
 export type ServiceType = "Corte" | "Baño" | "Corte y Baño";
 export type ServiceStatus = "Programado" | "En progreso" | "Completado" | "Cancelado";
-export type PaymentStatus = "Pendiente" | "Pagado" | "Parcial" | "Cancelado";
 
-// Interfaz IGroomingService
+// Interfaz IGroomingService (¡sin campos de pago!)
 export interface IGroomingService extends Document {
   patientId: mongoose.Types.ObjectId;
   service: ServiceType;
   specifications: string;
   observations?: string;
   cost: number;
-  paymentMethod: mongoose.Types.ObjectId; // Referencia al método de pago
-  paymentReference?: string; // Número de referencia para transferencias
   status: ServiceStatus;
-  groomer: mongoose.Types.ObjectId; // Veterinario responsable
-  paymentStatus: PaymentStatus;
-  amountPaid: number;
+  groomer: mongoose.Types.ObjectId; 
   date: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Esquema
+
 const GroomingServiceSchema = new Schema(
   {
     patientId: {
@@ -52,36 +48,16 @@ const GroomingServiceSchema = new Schema(
       required: [true, "El costo del servicio es obligatorio"],
       min: [0, "El costo no puede ser negativo"],
     },
-    paymentMethod: {
-      type: Schema.Types.ObjectId,
-      ref: "PaymentMethod",
-      required: [true, "El método de pago es obligatorio"]
-    },
-    paymentReference: {
-      type: String,
-      trim: true
-    },
     status: {
       type: String,
       enum: ["Programado", "En progreso", "Completado", "Cancelado"],
       default: "Programado",
-      required: true
+      required: true,
     },
     groomer: {
       type: Schema.Types.ObjectId,
-      ref: "Veterinarian",
-      required: [true, "El groomer responsable es obligatorio"]
-    },
-    paymentStatus: {
-      type: String,
-      enum: ["Pendiente", "Pagado", "Parcial", "Cancelado"],
-      default: "Pendiente",
-      required: true
-    },
-    amountPaid: {
-      type: Number,
-      default: 0,
-      min: [0, "El monto pagado no puede ser negativo"]
+      ref: "Staff", 
+      required: [true, "El groomer responsable es obligatorio"],
     },
     date: {
       type: Date,
@@ -94,7 +70,7 @@ const GroomingServiceSchema = new Schema(
   }
 );
 
-// Modelo
+
 const GroomingService = mongoose.model<IGroomingService>(
   "GroomingService",
   GroomingServiceSchema
