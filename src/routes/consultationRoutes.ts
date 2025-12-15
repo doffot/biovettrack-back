@@ -20,7 +20,7 @@ router.post(
   [
     param("patientId").isMongoId().withMessage("ID de paciente inválido"),
     
-    // 👇 ANAMNESIS
+    //  ANAMNESIS
     body("reasonForVisit").notEmpty().withMessage("Motivo obligatorio").isString().trim().isLength({ max: 300 }),
     body("symptomOnset").notEmpty().withMessage("Fecha inicio obligatoria").isString().trim().isLength({ max: 100 }),
     body("symptomEvolution").isIn(['empeorado', 'mejorado', 'estable']).withMessage("Evolución inválida"),
@@ -31,7 +31,7 @@ router.post(
     body("appetite").isIn(['Normal', 'Mucho', 'Poco', 'Nada']).withMessage("Apetito inválido"),
     body("vomiting").optional().isString().trim().isLength({ max: 200 }),
     body("bowelMovementFrequency").optional().isString().trim().isLength({ max: 100 }),
-    body("stoolConsistency").optional().isIn(['dura', 'pastosa', 'líquida']).withMessage("Consistencia inválida"),
+    body("stoolConsistency").optional().isIn(['normal', 'dura', 'pastosa', 'líquida']).withMessage("Consistencia inválida"), 
     body("bloodOrParasitesInStool").optional().isString().trim().isLength({ max: 100 }),
     body("normalUrination").optional().isString().trim().isLength({ max: 100 }),
     body("urineFrequencyAndAmount").optional().isString().trim().isLength({ max: 100 }),
@@ -49,7 +49,7 @@ router.post(
     body("currentTreatment").optional().isString().trim().isLength({ max: 300 }),
     body("medications").optional().isString().trim().isLength({ max: 300 }),
     
-    // 👇 VACUNAS
+    //  VACUNAS
     body("parvovirusVaccine").optional().isString().trim().isLength({ max: 100 }),
     body("parvovirusVaccineDate").optional().isISO8601(),
     body("quintupleSextupleVaccine").optional().isString().trim().isLength({ max: 100 }),
@@ -63,14 +63,14 @@ router.post(
     body("rabiesVaccineDateCats").optional().isISO8601(),
     body("dewormingCats").optional().isString().trim().isLength({ max: 200 }),
     
-    // 👇 HISTORIAL
+    //  HISTORIAL
     body("previousIllnesses").optional().isString().trim().isLength({ max: 300 }),
     body("previousSurgeries").optional().isString().trim().isLength({ max: 300 }),
     body("adverseReactions").optional().isString().trim().isLength({ max: 300 }),
     body("lastHeatOrBirth").optional().isString().trim().isLength({ max: 100 }),
     body("mounts").optional().isString().trim().isLength({ max: 100 }),
     
-    // 👇 EXAMEN FÍSICO
+    //  EXAMEN FÍSICO
     body("temperature").notEmpty().withMessage("Temperatura obligatoria").isFloat({ min: 35, max: 42 }),
     body("lymphNodes").optional().isString().trim().isLength({ max: 100 }),
     body("heartRate").notEmpty().withMessage("FC obligatoria").isInt({ min: 0, max: 300 }),
@@ -78,7 +78,7 @@ router.post(
     body("capillaryRefillTime").optional().isString().trim().isLength({ max: 50 }),
     body("weight").notEmpty().withMessage("Peso obligatorio").isFloat({ min: 0 }),
     
-    // 👇 SISTEMAS
+    //  SISTEMAS
     body("integumentarySystem").optional().isString().trim().isLength({ max: 300 }),
     body("cardiovascularSystem").optional().isString().trim().isLength({ max: 300 }),
     body("ocularSystem").optional().isString().trim().isLength({ max: 300 }),
@@ -87,13 +87,13 @@ router.post(
     body("musculoskeletalSystem").optional().isString().trim().isLength({ max: 300 }),
     body("gastrointestinalSystem").optional().isString().trim().isLength({ max: 300 }),
     
-    // 👇 DIAGNÓSTICO Y TRATAMIENTO
+    //  DIAGNÓSTICO Y TRATAMIENTO
     body("presumptiveDiagnosis").notEmpty().withMessage("Diagnóstico presuntivo obligatorio").isString().trim().isLength({ max: 300 }),
     body("definitiveDiagnosis").notEmpty().withMessage("Diagnóstico definitivo obligatorio").isString().trim().isLength({ max: 300 }),
     body("requestedTests").optional().isString().trim().isLength({ max: 300 }),
     body("treatmentPlan").notEmpty().withMessage("Plan de tratamiento obligatorio").isString().trim().isLength({ max: 500 }),
     
-    // 👇 COSTO
+    //  COSTO
     body("cost").notEmpty().withMessage("Costo obligatorio").isFloat({ min: 0 }),
   ],
   handleInputErrors,
@@ -132,7 +132,7 @@ router.put(
     body("appetite").optional().isIn(['Normal', 'Mucho', 'Poco', 'Nada']),
     body("vomiting").optional().isString().trim().isLength({ max: 200 }),
     body("bowelMovementFrequency").optional().isString().trim().isLength({ max: 100 }),
-    body("stoolConsistency").optional().isIn(['dura', 'pastosa', 'líquida']),
+    body("stoolConsistency").optional().isIn(['normal', 'dura', 'pastosa', 'líquida']), 
     body("bloodOrParasitesInStool").optional().isString().trim().isLength({ max: 100 }),
     body("normalUrination").optional().isString().trim().isLength({ max: 100 }),
     body("urineFrequencyAndAmount").optional().isString().trim().isLength({ max: 100 }),

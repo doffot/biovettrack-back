@@ -6,7 +6,7 @@ export interface IConsultation extends Document {
   veterinarianId: mongoose.Types.ObjectId;
   consultationDate: Date;
   
-  // 👇 ANAMNESIS
+  //  ANAMNESIS
   reasonForVisit: string;
   symptomOnset: string;
   symptomEvolution: 'empeorado' | 'mejorado' | 'estable';
@@ -17,7 +17,7 @@ export interface IConsultation extends Document {
   appetite: 'Normal' | 'Mucho' | 'Poco' | 'Nada';
   vomiting: string;
   bowelMovementFrequency: string;
-  stoolConsistency: 'dura' | 'pastosa' | 'líquida';
+  stoolConsistency: 'normal' | 'dura' | 'pastosa' | 'líquida'; // ✅ Agregado 'normal'
   bloodOrParasitesInStool: string;
   normalUrination: string;
   urineFrequencyAndAmount: string;
@@ -35,7 +35,7 @@ export interface IConsultation extends Document {
   currentTreatment: string;
   medications: string;
   
-  // 👇 VACUNAS PERRO
+  //  VACUNAS PERRO
   parvovirusVaccine: string;
   parvovirusVaccineDate?: Date;
   quintupleSextupleVaccine: string;
@@ -44,21 +44,21 @@ export interface IConsultation extends Document {
   rabiesVaccineDateDogs?: Date;
   dewormingDogs: string;
   
-  // 👇 VACUNAS GATO
+  //  VACUNAS GATO
   tripleQuintupleFelineVaccine: string;
   tripleQuintupleFelineVaccineDate?: Date;
   rabiesVaccineCats: string;
   rabiesVaccineDateCats?: Date;
   dewormingCats: string;
   
-  // 👇 HISTORIAL
+  //  HISTORIAL
   previousIllnesses: string;
   previousSurgeries: string;
   adverseReactions: string;
   lastHeatOrBirth?: string;
   mounts?: string;
   
-  // 👇 EXAMEN FÍSICO
+  //  EXAMEN FÍSICO
   temperature: number;
   lymphNodes: string;
   heartRate: number;
@@ -66,7 +66,7 @@ export interface IConsultation extends Document {
   capillaryRefillTime: string;
   weight: number;
   
-  // 👇 EVALUACIÓN POR SISTEMAS
+  //  EVALUACIÓN POR SISTEMAS
   integumentarySystem: string;
   cardiovascularSystem: string;
   ocularSystem: string;
@@ -75,13 +75,13 @@ export interface IConsultation extends Document {
   musculoskeletalSystem: string;
   gastrointestinalSystem: string;
   
-  // 👇 DIAGNÓSTICO Y TRATAMIENTO
+  //  DIAGNÓSTICO Y TRATAMIENTO
   presumptiveDiagnosis: string;
   definitiveDiagnosis: string;
   requestedTests: string;
   treatmentPlan: string;
   
-  // 👇 COSTO Y FACTURACIÓN
+  //  COSTO Y FACTURACIÓN
   cost: number;
   createdAt: Date;
   updatedAt: Date;
@@ -135,7 +135,7 @@ const ConsultationSchema = new Schema(
     bowelMovementFrequency: { type: String, trim: true, maxlength: 100 },
     stoolConsistency: {
       type: String,
-      enum: ['dura', 'pastosa', 'líquida'],
+      enum: ['normal', 'dura', 'pastosa', 'líquida'], // ✅ Agregado 'normal'
     },
     bloodOrParasitesInStool: { type: String, trim: true, maxlength: 100 },
     normalUrination: { type: String, trim: true, maxlength: 100 },
@@ -154,7 +154,7 @@ const ConsultationSchema = new Schema(
     currentTreatment: { type: String, trim: true, maxlength: 300 },
     medications: { type: String, trim: true, maxlength: 300 },
     
-    // 👇 VACUNAS PERRO
+    //  VACUNAS PERRO
     parvovirusVaccine: { type: String, trim: true, maxlength: 100 },
     parvovirusVaccineDate: { type: Date },
     quintupleSextupleVaccine: { type: String, trim: true, maxlength: 100 },
@@ -163,21 +163,21 @@ const ConsultationSchema = new Schema(
     rabiesVaccineDateDogs: { type: Date },
     dewormingDogs: { type: String, trim: true, maxlength: 200 },
     
-    // 👇 VACUNAS GATO
+    //  VACUNAS GATO
     tripleQuintupleFelineVaccine: { type: String, trim: true, maxlength: 100 },
     tripleQuintupleFelineVaccineDate: { type: Date },
     rabiesVaccineCats: { type: String, trim: true, maxlength: 100 },
     rabiesVaccineDateCats: { type: Date },
     dewormingCats: { type: String, trim: true, maxlength: 200 },
     
-    // 👇 HISTORIAL
+    //  HISTORIAL
     previousIllnesses: { type: String, trim: true, maxlength: 300 },
     previousSurgeries: { type: String, trim: true, maxlength: 300 },
     adverseReactions: { type: String, trim: true, maxlength: 300 },
     lastHeatOrBirth: { type: String, trim: true, maxlength: 100 },
     mounts: { type: String, trim: true, maxlength: 100 },
     
-    // 👇 EXAMEN FÍSICO
+    //  EXAMEN FÍSICO
     temperature: {
       type: Number,
       required: [true, "La temperatura es obligatoria"],
@@ -204,7 +204,7 @@ const ConsultationSchema = new Schema(
       min: 0,
     },
     
-    // 👇 SISTEMAS
+    //  SISTEMAS
     integumentarySystem: { type: String, trim: true, maxlength: 300 },
     cardiovascularSystem: { type: String, trim: true, maxlength: 300 },
     ocularSystem: { type: String, trim: true, maxlength: 300 },
@@ -213,7 +213,7 @@ const ConsultationSchema = new Schema(
     musculoskeletalSystem: { type: String, trim: true, maxlength: 300 },
     gastrointestinalSystem: { type: String, trim: true, maxlength: 300 },
     
-    // 👇 DIAGNÓSTICO Y TRATAMIENTO
+    //  DIAGNÓSTICO Y TRATAMIENTO
     presumptiveDiagnosis: {
       type: String,
       required: [true, "Diagnóstico presuntivo obligatorio"],
@@ -234,7 +234,7 @@ const ConsultationSchema = new Schema(
       maxlength: 500,
     },
     
-    // 👇 COSTO
+    //  COSTO
     cost: {
       type: Number,
       required: [true, "El costo es obligatorio"],

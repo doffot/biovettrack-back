@@ -178,7 +178,7 @@ const getByResourceIdValidation = [
     .withMessage("Tipo de recurso no válido"),
 ];
 
-// Validaciones para filtros de lista
+// Validaciones para filtros de lista - ACTUALIZADO para reportes
 const listInvoicesValidation = [
   query("status")
     .optional()
@@ -203,8 +203,8 @@ const listInvoicesValidation = [
     .withMessage("La página debe ser un número entero positivo"),
   query("limit")
     .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage("El límite debe estar entre 1 y 100"),
+    .isInt({ min: 1, max: 10000 })
+    .withMessage("El límite debe estar entre 1 y 10000"),
 ];
 
 const router = Router();
