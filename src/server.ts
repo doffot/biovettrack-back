@@ -5,7 +5,7 @@ import { connectDB } from "./config/db";
 import cors from "cors";
 import ownerRoutes from "./routes/ownerRoutes";
 import patientRoutes from "./routes/patientRoutes";
-import labExamRoutes from "./routes/labExamRoutes"; // ← importado
+import labExamRoutes from "./routes/labExamRoutes";
 import { corsConfig } from "./config/cors";
 import authRoutes from "./routes/authRoutes";
 import { globalGroomingRouter, patientGroomingRouter } from './routes/groomingRoutes';
@@ -17,6 +17,7 @@ import medicalStudyRouter from './routes/medicalStudyRoutes';
 import vaccinationRouter from './routes/vaccinationRoutes';
 import dewormingRouter from './routes/dewormingRoutes';
 import consultationRouter from './routes/consultationRoutes';
+import recipeRouter from './routes/recipeRoutes'; // 👈 NUEVO
 
 connectDB();
 
@@ -36,10 +37,9 @@ app.use("/api/medical-studies", medicalStudyRouter);
 app.use("/api/vaccinations", vaccinationRouter);
 app.use("/api/dewormings", dewormingRouter);
 app.use("/api/consultations", consultationRouter);
+app.use("/api/recipes", recipeRouter); // 👈 NUEVO
 
 app.use('/api/lab-exams', labExamRoutes);
-
-
 app.use('/api/patients/:patientId/lab-exams', labExamRoutes);
 
 // Rutas de peluquería
