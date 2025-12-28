@@ -5,7 +5,6 @@ import { handleInputErrors } from '../middleware/validation';
 import { GroomingServiceController } from '../controllers/GroomingServiceController';
 import { authenticate } from '../middleware/auth';
 
-
 const createGroomingValidation = [
   body('service')
     .isIn(['Corte', 'Baño', 'Corte y Baño'])
@@ -26,16 +25,10 @@ const createGroomingValidation = [
   body('cost')
     .isFloat({ min: 0 }).withMessage('El costo debe ser un número positivo'),
 
-  body('status')
-    .optional()
-    .isIn(['Programado', 'En progreso', 'Completado', 'Cancelado'])
-    .withMessage('Estado no válido'),
-
   body('date')
     .optional()
     .isISO8601().withMessage('Fecha inválida')
 ];
-
 
 const updateGroomingValidation = [
   body('service')
@@ -59,16 +52,10 @@ const updateGroomingValidation = [
     .optional()
     .isFloat({ min: 0 }).withMessage('El costo debe ser un número positivo'),
 
-  body('status')
-    .optional()
-    .isIn(['Programado', 'En progreso', 'Completado', 'Cancelado'])
-    .withMessage('Estado no válido'),
-
   body('date')
     .optional()
     .isISO8601().withMessage('Fecha inválida')
 ];
-
 
 const globalGroomingRouter = Router();
 
@@ -99,7 +86,6 @@ globalGroomingRouter.delete(
   GroomingServiceController.deleteGroomingService
 );
 
-//  Router ANIDADO
 const patientGroomingRouter = Router({ mergeParams: true });
 
 patientGroomingRouter.post(

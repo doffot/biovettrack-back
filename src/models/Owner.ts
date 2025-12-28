@@ -1,13 +1,13 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 import { IVeterinarian } from "./Veterinarian";
 
-
 export interface IOwner extends Document {
   name: string;
   contact: string;
   email?: string;
   address?: string;
-  nationalId?: string; 
+  nationalId?: string;
+  creditBalance: number;
   createdAt: Date;
   updatedAt: Date;
   veterinarian?: Types.ObjectId | IVeterinarian;
@@ -45,11 +45,14 @@ const OwnerSchema: Schema = new Schema(
     },
     nationalId: {
       type: String,
-      required: false, // ← Puedes cambiar a `true` si es obligatorio
+      required: false,
       trim: true,
-      unique: true, 
-     
-     
+      unique: true,
+    },
+    creditBalance: {
+      type: Number,
+      default: 0,
+      min: [0, "El crédito no puede ser negativo"]
     },
     veterinarian: {
       type: Types.ObjectId,
@@ -61,7 +64,6 @@ const OwnerSchema: Schema = new Schema(
   }
 );
 
-// Virtual para mascotas
 OwnerSchema.virtual("pets", {
   ref: "Patient",
   localField: "_id",
@@ -69,12 +71,8 @@ OwnerSchema.virtual("pets", {
   justOne: false
 });
 
-
 OwnerSchema.set("toJSON", { virtuals: true });
 OwnerSchema.set("toObject", { virtuals: true });
-
-
-
 
 const Owner = mongoose.model<IOwner>("Owner", OwnerSchema);
 export default Owner;

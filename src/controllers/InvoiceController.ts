@@ -13,15 +13,13 @@ export class InvoiceController {
 
       const invoiceData = req.body;
 
-      // Validar que tenga al menos un ítem
       if (!invoiceData.items || invoiceData.items.length === 0) {
         return res.status(400).json({ msg: "La factura debe tener al menos un ítem" });
       }
 
-      // Validar que tenga dueño (registrado o no)
       if (!invoiceData.ownerId && (!invoiceData.ownerName || !invoiceData.ownerPhone)) {
-        return res.status(400).json({ 
-          msg: "La factura debe tener un dueño (registrado o con nombre y teléfono)" 
+        return res.status(400).json({
+          msg: "La factura debe tener un dueño (registrado o con nombre y teléfono)",
         });
       }
 
@@ -52,18 +50,17 @@ export class InvoiceController {
         return res.status(401).json({ msg: "Usuario no autenticado" });
       }
 
-      const { 
-        status, 
-        ownerId, 
+      const {
+        status,
+        ownerId,
         ownerName,
         patientId,
         page = 1,
-        limit = 10 
+        limit = 10,
       } = req.query;
 
       const filter: any = { veterinarianId: req.user._id };
 
-      // Filtros opcionales
       if (status) filter.paymentStatus = status;
       if (ownerId) filter.ownerId = ownerId;
       if (ownerName) filter.ownerName = { $regex: ownerName, $options: "i" };
@@ -128,110 +125,85 @@ export class InvoiceController {
     }
   };
 
-  /* ---------- ACTUALIZAR FACTURA (PAGO) ---------- */
-  static updateInvoice = async (req: Request, res: Response) => {
-    try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: "Usuario no autenticado" });
-      }
-
-      const { id } = req.params;
-      const updateData = req.body;
-
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ msg: "ID de factura inválido" });
-      }
-
-      const currentInvoice = await Invoice.findById(id);
-      
-      if (!currentInvoice) {
-        return res.status(404).json({ msg: "Factura no encontrada" });
-      }
-
-      // 👇 NUEVO: Manejar pagos por moneda
-      if (updateData.amountPaidUSD !== undefined || updateData.amountPaidBs !== undefined) {
-        // Si viene amountPaidUSD, actualizarlo
-        if (updateData.amountPaidUSD !== undefined) {
-          currentInvoice.amountPaidUSD = updateData.amountPaidUSD;
-        }
-        
-        // Si viene amountPaidBs, actualizarlo
-        if (updateData.amountPaidBs !== undefined) {
-          currentInvoice.amountPaidBs = updateData.amountPaidBs;
-        }
-
-        // Si viene exchangeRate, actualizarlo
-        if (updateData.exchangeRate !== undefined) {
-          currentInvoice.exchangeRate = updateData.exchangeRate;
-        }
-
-        // Guardar con el middleware que calculará amountPaid y paymentStatus
-        await currentInvoice.save();
-
-        const populatedInvoice = await Invoice.findById(id)
-          .populate("ownerId", "name contact")
-          .populate("patientId", "name")
-          .populate("veterinarianId", "name lastName")
-          .populate("paymentMethod", "name");
-
-        return res.json({
-          msg: "Factura actualizada correctamente",
-          invoice: populatedInvoice,
-        });
-      }
-
-      // 👇 LEGACY: Si viene amountPaid directamente (compatibilidad)
-      if (updateData.amountPaid !== undefined) {
-        // Validar que no exceda el total
-        if (updateData.amountPaid > currentInvoice.total) {
-          return res.status(400).json({ msg: "El monto pagado no puede exceder el total" });
-        }
-        
-        // Si la factura es en Bs, guardar en amountPaidBs
-        if (currentInvoice.currency === "Bs") {
-          updateData.amountPaidBs = updateData.amountPaid;
-          updateData.amountPaidUSD = 0;
-        } else {
-          // Si es en USD, guardar en amountPaidUSD
-          updateData.amountPaidUSD = updateData.amountPaid;
-          updateData.amountPaidBs = 0;
-        }
-      }
-
-      // Actualizar otros campos
-      const invoice = await Invoice.findOneAndUpdate(
-        {
-          _id: id,
-          veterinarianId: req.user._id,
-        },
-        updateData,
-        {
-          new: true,
-          runValidators: true,
-        }
-      )
-        .populate("ownerId", "name contact")
-        .populate("patientId", "name")
-        .populate("veterinarianId", "name lastName")
-        .populate("paymentMethod", "name");
-
-      if (!invoice) {
-        return res.status(404).json({ msg: "Factura no encontrada" });
-      }
-
-      res.json({
-        msg: "Factura actualizada correctamente",
-        invoice,
-      });
-    } catch (error: any) {
-      if (error.name === "ValidationError") {
-        console.error("Error de validación:", error.errors);
-        return res.status(400).json({ msg: "Datos inválidos", errors: error.errors });
-      }
-      console.error("Error en updateInvoice:", error);
-      return res.status(500).json({ msg: "Error al actualizar la factura" });
+/* ---------- ACTUALIZAR FACTURA (PAGO) ---------- */
+static updateInvoice = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: "Usuario no autenticado" });
     }
-  };
+
+    const { id } = req.params;
+    const updateData = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: "ID de factura inválido" });
+    }
+
+    const currentInvoice = await Invoice.findOne({
+      _id: id,
+      veterinarianId: req.user._id,
+    });
+
+    if (!currentInvoice) {
+      return res.status(404).json({ msg: "Factura no encontrada" });
+    }
+
+      
+
+    //  Manejo de pagos incrementales (addAmountPaidUSD / addAmountPaidBs)
+    if (updateData.addAmountPaidUSD !== undefined || updateData.addAmountPaidBs !== undefined) {
+      if (updateData.addAmountPaidUSD !== undefined && updateData.addAmountPaidUSD > 0) {
+        currentInvoice.amountPaidUSD = (currentInvoice.amountPaidUSD || 0) + updateData.addAmountPaidUSD;
+      }
+      if (updateData.addAmountPaidBs !== undefined && updateData.addAmountPaidBs > 0) {
+        currentInvoice.amountPaidBs = (currentInvoice.amountPaidBs || 0) + updateData.addAmountPaidBs;
+      }
+    }
+    //  Manejo de pagos directos (reemplazo total)
+    else if (updateData.amountPaidUSD !== undefined || updateData.amountPaidBs !== undefined) {
+      if (updateData.amountPaidUSD !== undefined) {
+        currentInvoice.amountPaidUSD = updateData.amountPaidUSD;
+      }
+      if (updateData.amountPaidBs !== undefined) {
+        currentInvoice.amountPaidBs = updateData.amountPaidBs;
+      }
+    }
+
+    //  Otros campos
+    if (updateData.exchangeRate !== undefined && updateData.exchangeRate > 0) {
+      currentInvoice.exchangeRate = updateData.exchangeRate;
+    }
+    if (updateData.paymentMethod !== undefined) {
+      currentInvoice.paymentMethod = updateData.paymentMethod;
+    }
+    if (updateData.paymentReference !== undefined) {
+      currentInvoice.paymentReference = updateData.paymentReference;
+    }
+
+    //  Guardar — el middleware del modelo se encargará de:
+    // - Recalcular amountPaid
+    // - Actualizar paymentStatus
+    await currentInvoice.save();
+
+    const populatedInvoice = await Invoice.findById(id)
+      .populate("ownerId", "name contact")
+      .populate("patientId", "name")
+      .populate("veterinarianId", "name lastName")
+      .populate("paymentMethod", "name");
+
+    return res.json({
+      msg: "Factura actualizada correctamente",
+      invoice: populatedInvoice,
+    });
+  } catch (error: any) {
+    if (error.name === "ValidationError") {
+      console.error("Error de validación:", error.errors);
+      return res.status(400).json({ msg: "Datos inválidos", errors: error.errors });
+    }
+    console.error("Error en updateInvoice:", error);
+    return res.status(500).json({ msg: "Error al actualizar la factura" });
+  }
+};
 
   /* ---------- ELIMINAR FACTURA ---------- */
   static deleteInvoice = async (req: Request, res: Response) => {
@@ -262,7 +234,7 @@ export class InvoiceController {
     }
   };
 
-   /* ---------- ACTUALIZAR ITEM DE FACTURA ---------- */
+  /* ---------- ACTUALIZAR ITEM DE FACTURA ---------- */
   static updateInvoiceItem = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {
@@ -272,7 +244,6 @@ export class InvoiceController {
       const { id, resourceId } = req.params;
       const { cost, description, quantity } = req.body;
 
-      // Validar IDs
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ msg: "ID de factura inválido" });
       }
@@ -281,7 +252,6 @@ export class InvoiceController {
         return res.status(400).json({ msg: "ID de recurso inválido" });
       }
 
-      // Buscar la factura
       const invoice = await Invoice.findOne({
         _id: id,
         veterinarianId: req.user._id,
@@ -291,7 +261,6 @@ export class InvoiceController {
         return res.status(404).json({ msg: "Factura no encontrada" });
       }
 
-      // Buscar el item por resourceId
       const itemIndex = invoice.items.findIndex(
         (item) => item.resourceId.toString() === resourceId
       );
@@ -300,7 +269,6 @@ export class InvoiceController {
         return res.status(404).json({ msg: "Item no encontrado en la factura" });
       }
 
-      // Actualizar el item
       if (cost !== undefined) {
         invoice.items[itemIndex].cost = cost;
       }
@@ -311,16 +279,13 @@ export class InvoiceController {
         invoice.items[itemIndex].quantity = quantity;
       }
 
-      // Recalcular el total
       invoice.total = invoice.items.reduce(
         (sum, item) => sum + item.cost * item.quantity,
         0
       );
 
-      // Guardar (el middleware pre-save actualizará amountPaid y paymentStatus)
       await invoice.save();
 
-      // Populate para la respuesta
       const populatedInvoice = await Invoice.findById(id)
         .populate("ownerId", "name contact")
         .populate("patientId", "name")
@@ -355,7 +320,6 @@ export class InvoiceController {
         return res.status(400).json({ msg: "ID de recurso inválido" });
       }
 
-      // Buscar factura que contenga este recurso
       const invoice = await Invoice.findOne({
         veterinarianId: req.user._id,
         "items.resourceId": resourceId,
@@ -376,5 +340,4 @@ export class InvoiceController {
       return res.status(500).json({ msg: "Error al buscar la factura" });
     }
   };
-
 }

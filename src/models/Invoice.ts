@@ -1,4 +1,3 @@
-// src/models/Invoice.ts
 import mongoose, { Schema, Document } from "mongoose";
 
 // Tipos para el estado
@@ -170,21 +169,27 @@ const InvoiceSchema = new Schema(
   }
 );
 
-// Middleware para calcular amountPaid y actualizar paymentStatus automáticamente
+// ✅ Middleware corregido: siempre recalcula amountPaid y paymentStatus
 InvoiceSchema.pre('save', function(next) {
-  // Calcular amountPaid total en USD
-  const bsToUSD = this.exchangeRate ? this.amountPaidBs / this.exchangeRate : 0;
-  this.amountPaid = this.amountPaidUSD + bsToUSD;
-  
-  // Actualizar status automáticamente
-  if (this.amountPaid >= this.total) {
+  // Recalcular amountPaid a partir de los montos reales
+  const bsToUSD = this.exchangeRate && this.amountPaidBs
+    ? this.amountPaidBs / this.exchangeRate
+    : 0;
+  this.amountPaid = (this.amountPaidUSD || 0) + bsToUSD;
+
+  // Evitar valores negativos
+  if (this.amountPaid < 0) this.amountPaid = 0;
+
+  // Recalcular el estado de pago
+  const tolerance = 0.01; // Tolerancia para redondeo
+  if (this.amountPaid >= this.total - tolerance) {
     this.paymentStatus = 'Pagado';
   } else if (this.amountPaid > 0) {
     this.paymentStatus = 'Parcial';
   } else {
     this.paymentStatus = 'Pendiente';
   }
-  
+
   next();
 });
 

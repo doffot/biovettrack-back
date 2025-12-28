@@ -1,23 +1,25 @@
+// src/controllers/GroomingServiceController.ts
 import type { Request, Response } from "express";
 import GroomingService from "../models/GroomingService";
 import Patient from "../models/Patient";
 import mongoose from "mongoose";
 import Staff from "../models/Staff";
-import Invoice from "../models/Invoice"; // 👈 Importación añadida
+import Invoice from "../models/Invoice";
+import Appointment from "../models/Appointment";
 
 export class GroomingServiceController {
-  /* ---------- HELPER: Normalizar fecha para evitar problemas de timezone ---------- */
+
   private static normalizeDate(dateInput?: string | Date): Date {
     if (!dateInput) {
       const now = new Date();
       now.setHours(12, 0, 0, 0);
       return now;
     }
-    
-    const dateStr = typeof dateInput === 'string' 
-      ? dateInput.split('T')[0] 
+
+    const dateStr = typeof dateInput === 'string'
+      ? dateInput.split('T')[0]
       : dateInput.toISOString().split('T')[0];
-    
+
     return new Date(dateStr + 'T12:00:00');
   }
 
@@ -47,57 +49,71 @@ export class GroomingServiceController {
         return res.status(400).json({ msg: 'ID de paciente inválido' });
       }
 
-      // Verificar que el paciente existe y pertenece al veterinario
       const patient = await Patient.findOne({
         _id: patientId,
         mainVet: req.user._id
       });
-      
+
       if (!patient) {
         return res.status(404).json({ msg: 'Paciente no encontrado' });
       }
 
-      // ✅ Obtener el Staff del dueño para asignar como groomer
       const ownerStaff = await GroomingServiceController.getOwnerStaff(req.user._id);
 
       const groomingService = new GroomingService({
         ...serviceData,
         patientId: patientId,
-        groomer: ownerStaff._id, 
+        groomer: ownerStaff._id,
         date: GroomingServiceController.normalizeDate(serviceData.date),
       });
 
       await groomingService.save();
 
-      // 👇 CREAR FACTURA AUTOMÁTICAMENTE (solo para pacientes propios)
+      // BUSCAR Y COMPLETAR CITA AUTOMÁTICAMENTE
+      try {
+        const openAppointment = await Appointment.findOne({
+          patient: patientId,
+          type: "Peluquería",
+          status: "Programada",
+        }).sort({ date: 1 });
+
+        if (openAppointment) {
+          openAppointment.status = "Completada";
+          await openAppointment.save();
+          console.log(`✅ Cita ${openAppointment._id} marcada como Completada`);
+        }
+      } catch (appointmentError) {
+        console.error("⚠️ Error al buscar/actualizar cita:", appointmentError);
+      }
+
+      // CREAR FACTURA AUTOMÁTICAMENTE
       try {
         const invoice = new Invoice({
-          ownerId: patient.owner, // 👈 Dueño del paciente
+          ownerId: patient.owner,
           patientId: patientId,
           items: [{
             type: "grooming",
             resourceId: groomingService._id,
             description: `${groomingService.service} - ${patient.name}`,
-            cost: groomingService.cost, // 👈 Siempre en USD
+            cost: groomingService.cost,
             quantity: 1,
           }],
-          currency: "USD", // 👈 Grooming siempre en USD
+          currency: "USD",
           total: groomingService.cost,
           amountPaid: 0,
-          paymentStatus: "Pendiente", // 👈 Siempre pendiente
+          paymentStatus: "Pendiente",
           date: new Date(),
           veterinarianId: req.user._id,
         });
         await invoice.save();
+        console.log("✅ Factura creada:", invoice._id);
       } catch (invoiceError) {
         console.error("⚠️ Error al crear factura para grooming:", invoiceError);
-        // No fallamos la creación del servicio si la factura falla
       }
 
-      // Populate sin paymentMethod
       const populatedService = await GroomingService.findById(groomingService._id)
         .populate('patientId')
-        .populate('groomer'); 
+        .populate('groomer');
 
       res.status(201).json({
         msg: 'Servicio de peluquería registrado correctamente',
@@ -137,9 +153,9 @@ export class GroomingServiceController {
 
       const services = await GroomingService.find({ patientId: patientId })
         .populate('patientId')
-        .populate('groomer') // ✅
+        .populate('groomer')
         .sort({ date: -1 });
-        
+
       res.json({ services });
     } catch (error: any) {
       res.status(500).json({ msg: 'Error al obtener historial de servicios del paciente' });
@@ -166,14 +182,14 @@ export class GroomingServiceController {
         patientId: { $in: patientIds }
       })
         .populate('patientId')
-        .populate('groomer') // ✅
+        .populate('groomer')
         .sort({ date: -1 });
 
       res.json({ services });
     } catch (error: any) {
       console.error('Error en getAllGroomingServices:', error);
-      res.status(500).json({ 
-        msg: error.message || "Error al obtener servicios de peluquería" 
+      res.status(500).json({
+        msg: error.message || "Error al obtener servicios de peluquería"
       });
     }
   };
@@ -188,10 +204,10 @@ export class GroomingServiceController {
       const service = await GroomingService.findById(req.params.id)
         .populate({
           path: 'patientId',
-          populate: { path: 'owner' } 
+          populate: { path: 'owner' }
         })
-        .populate('groomer'); // ✅
-      
+        .populate('groomer');
+
       if (!service) {
         return res.status(404).json({ msg: "Servicio no encontrado" });
       }
@@ -204,14 +220,14 @@ export class GroomingServiceController {
       if (!patient) {
         return res.status(403).json({ msg: "No tienes permiso para ver este servicio" });
       }
-      
+
       res.json({ service });
     } catch (error: any) {
       console.error('Error en getGroomingServiceById:', error);
       res.status(500).json({ msg: error.message || "Error al obtener servicio" });
     }
   };
-  
+
   /* ---------- ACTUALIZAR SERVICIO ---------- */
   static updateGroomingService = async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -224,7 +240,7 @@ export class GroomingServiceController {
 
       const existingService = await GroomingService.findById(id)
         .populate('patientId');
-      
+
       if (!existingService) {
         return res.status(404).json({ msg: "Servicio no encontrado" });
       }
@@ -238,13 +254,11 @@ export class GroomingServiceController {
         return res.status(403).json({ msg: "No tienes permiso para actualizar este servicio" });
       }
 
-      // ✅ Si no se envía groomer, usamos el del dueño (consistente con create)
       if (!serviceData.groomer) {
         const ownerStaff = await GroomingServiceController.getOwnerStaff(req.user._id);
         serviceData.groomer = ownerStaff._id;
       }
 
-      // Normalizar fecha si se está actualizando
       if (serviceData.date) {
         serviceData.date = GroomingServiceController.normalizeDate(serviceData.date);
       }
@@ -254,10 +268,10 @@ export class GroomingServiceController {
         runValidators: true,
       })
         .populate('patientId')
-        .populate('groomer'); // ✅
+        .populate('groomer');
 
-      res.json({ 
-        msg: "Servicio de peluquería actualizado correctamente", 
+      res.json({
+        msg: "Servicio de peluquería actualizado correctamente",
         service: updatedService
       });
 
@@ -279,7 +293,7 @@ export class GroomingServiceController {
 
       const existingService = await GroomingService.findById(req.params.id)
         .populate('patientId');
-      
+
       if (!existingService) {
         return res.status(404).json({ msg: "Servicio no encontrado" });
       }
@@ -294,7 +308,7 @@ export class GroomingServiceController {
       }
 
       await GroomingService.findByIdAndDelete(req.params.id);
-      
+
       res.json({ msg: "Servicio de peluquería eliminado correctamente" });
     } catch (error: any) {
       console.error(error);

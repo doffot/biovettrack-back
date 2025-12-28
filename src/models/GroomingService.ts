@@ -1,24 +1,19 @@
 // src/models/GroomingService.ts
 import mongoose, { Schema, Document } from "mongoose";
 
-// Tipos para el servicio
 export type ServiceType = "Corte" | "Baño" | "Corte y Baño";
-export type ServiceStatus = "Programado" | "En progreso" | "Completado" | "Cancelado";
 
-// Interfaz IGroomingService (¡sin campos de pago!)
 export interface IGroomingService extends Document {
   patientId: mongoose.Types.ObjectId;
   service: ServiceType;
   specifications: string;
   observations?: string;
   cost: number;
-  status: ServiceStatus;
-  groomer: mongoose.Types.ObjectId; 
+  groomer: mongoose.Types.ObjectId;
   date: Date;
   createdAt: Date;
   updatedAt: Date;
 }
-
 
 const GroomingServiceSchema = new Schema(
   {
@@ -48,15 +43,9 @@ const GroomingServiceSchema = new Schema(
       required: [true, "El costo del servicio es obligatorio"],
       min: [0, "El costo no puede ser negativo"],
     },
-    status: {
-      type: String,
-      enum: ["Programado", "En progreso", "Completado", "Cancelado"],
-      default: "Programado",
-      required: true,
-    },
     groomer: {
       type: Schema.Types.ObjectId,
-      ref: "Staff", 
+      ref: "Staff",
       required: [true, "El groomer responsable es obligatorio"],
     },
     date: {
@@ -69,7 +58,6 @@ const GroomingServiceSchema = new Schema(
     timestamps: true,
   }
 );
-
 
 const GroomingService = mongoose.model<IGroomingService>(
   "GroomingService",

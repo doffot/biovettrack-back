@@ -1,116 +1,133 @@
 // src/controllers/LabExamController.ts
 import type { Request, Response } from "express";
 import LabExam from "../models/LabExam";
-import Invoice from "../models/Invoice"; 
-import Patient from "../models/Patient"; 
+import Invoice from "../models/Invoice";
+import Patient from "../models/Patient";
+import Appointment from "../models/Appointment";
 import { validateDifferentialSum } from "../utils/validateDifferentialCount";
 
 export class LabExamController {
   /* ---------- CREAR ---------- */
+  static createLabExam = async (req: Request, res: Response) => {
+    const data = req.body;
 
-static createLabExam = async (req: Request, res: Response) => {
-  const data = req.body;
-
-  try {
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ msg: 'Usuario no autenticado' });
-    }
-
-    // Validar conteo diferencial
-    if (data.differentialCount && !validateDifferentialSum(data.differentialCount)) {
-      return res.status(400).json({
-        msg: "La suma del conteo diferencial no puede superar 100",
-      });
-    }
-
-    // Crear examen
-    const labExam = new LabExam({
-      ...data,
-      vetId: req.user._id,
-    });
-    await labExam.save();
-
-    //  CREAR FACTURA AUTOMÁTICAMENTE
     try {
-      const isReferredPatient = !labExam.patientId;
-      
-      let invoiceData: any;
-      
-      if (isReferredPatient) {
-        const exchangeRate = data.exchangeRate;
-        
-        // Validar que venga la tasa
-        if (!exchangeRate || exchangeRate <= 0) {
-          console.error("⚠️ No se recibió tasa de cambio válida");
-          throw new Error("Tasa de cambio no proporcionada");
-        }
-        
-        const amountInBs = data.amount || parseFloat((labExam.cost * exchangeRate).toFixed(2));
-        
-        invoiceData = {
-          items: [{
-            type: "labExam",
-            resourceId: labExam._id,
-            description: `Hemograma - ${labExam.patientName}`,
-            cost: labExam.cost,
-            quantity: 1,
-          }],
-          currency: "Bs",
-          exchangeRate: exchangeRate,
-          total: amountInBs,
-          amountPaid: amountInBs,
-          paymentStatus: "Pagado",
-          date: new Date(),
-          veterinarianId: req.user._id,
-          ownerName: labExam.ownerName,
-          ownerPhone: labExam.ownerPhone,
-          
-          paymentMethod: data.paymentMethodId || data.paymentMethod,
-          paymentReference: data.paymentReference || data.reference,
-        };
-      } else {
-        invoiceData = {
-          items: [{
-            type: "labExam",
-            resourceId: labExam._id,
-            description: `Hemograma - ${labExam.patientName}`,
-            cost: labExam.cost,
-            quantity: 1,
-          }],
-          currency: "USD",
-          total: labExam.cost,
-          amountPaid: 0,
-          paymentStatus: "Pendiente",
-          date: new Date(),
-          veterinarianId: req.user._id,
-        };
-        
-        const patient = await Patient.findById(labExam.patientId);
-        if (patient) {
-          invoiceData.ownerId = patient.owner;
-          invoiceData.patientId = labExam.patientId;
+      if (!req.user || !req.user._id) {
+        return res.status(401).json({ msg: 'Usuario no autenticado' });
+      }
+
+      // Validar conteo diferencial
+      if (data.differentialCount && !validateDifferentialSum(data.differentialCount)) {
+        return res.status(400).json({
+          msg: "La suma del conteo diferencial no puede superar 100",
+        });
+      }
+
+      // Crear examen
+      const labExam = new LabExam({
+        ...data,
+        vetId: req.user._id,
+      });
+      await labExam.save();
+
+      // BUSCAR Y COMPLETAR CITA AUTOMÁTICAMENTE
+      if (labExam.patientId) {
+        try {
+          const openAppointment = await Appointment.findOne({
+            patient: labExam.patientId,
+            type: "Laboratorio",
+            status: "Programada",
+          }).sort({ date: 1 }); // La más próxima
+
+          if (openAppointment) {
+            openAppointment.status = "Completada";
+            await openAppointment.save();
+            console.log(`✅ Cita ${openAppointment._id} marcada como Completada`);
+          }
+        } catch (appointmentError) {
+          console.error("⚠️ Error al buscar/actualizar cita:", appointmentError);
         }
       }
 
-      const invoice = new Invoice(invoiceData);
-      await invoice.save();
-      
-      console.log("✅ Factura creada:", {
-        id: invoice._id,
-        exchangeRate: invoice.exchangeRate,
-        total: invoice.total
-      });
-      
-    } catch (invoiceError) {
-      console.error("⚠️ Error al crear factura (examen guardado):", invoiceError);
-    }
+      // CREAR FACTURA AUTOMÁTICAMENTE
+      try {
+        const isReferredPatient = !labExam.patientId;
+        
+        let invoiceData: any;
+        
+        if (isReferredPatient) {
+          const exchangeRate = data.exchangeRate;
+          
+          if (!exchangeRate || exchangeRate <= 0) {
+            console.error("⚠️ No se recibió tasa de cambio válida");
+            throw new Error("Tasa de cambio no proporcionada");
+          }
+          
+          const amountInBs = data.amount || parseFloat((labExam.cost * exchangeRate).toFixed(2));
+          
+          invoiceData = {
+            items: [{
+              type: "labExam",
+              resourceId: labExam._id,
+              description: `Hemograma - ${labExam.patientName}`,
+              cost: labExam.cost,
+              quantity: 1,
+            }],
+            currency: "Bs",
+            exchangeRate: exchangeRate,
+            total: amountInBs,
+            amountPaid: amountInBs,
+            paymentStatus: "Pagado",
+            date: new Date(),
+            veterinarianId: req.user._id,
+            ownerName: labExam.ownerName,
+            ownerPhone: labExam.ownerPhone,
+            paymentMethod: data.paymentMethodId || data.paymentMethod,
+            paymentReference: data.paymentReference || data.reference,
+          };
+        } else {
+          invoiceData = {
+            items: [{
+              type: "labExam",
+              resourceId: labExam._id,
+              description: `Hemograma - ${labExam.patientName}`,
+              cost: labExam.cost,
+              quantity: 1,
+            }],
+            currency: "USD",
+            total: labExam.cost,
+            amountPaid: 0,
+            paymentStatus: "Pendiente",
+            date: new Date(),
+            veterinarianId: req.user._id,
+          };
+          
+          const patient = await Patient.findById(labExam.patientId);
+          if (patient) {
+            invoiceData.ownerId = patient.owner;
+            invoiceData.patientId = labExam.patientId;
+          }
+        }
 
-    res.status(201).json(labExam);
-  } catch (error: any) {
-    console.error("Error en createLabExam:", error);
-    res.status(500).json("Error al crear el examen");
-  }
-};
+        const invoice = new Invoice(invoiceData);
+        await invoice.save();
+        
+        console.log("✅ Factura creada:", {
+          id: invoice._id,
+          exchangeRate: invoice.exchangeRate,
+          total: invoice.total
+        });
+        
+      } catch (invoiceError) {
+        console.error("⚠️ Error al crear factura (examen guardado):", invoiceError);
+      }
+
+      res.status(201).json(labExam);
+    } catch (error: any) {
+      console.error("Error en createLabExam:", error);
+      res.status(500).json("Error al crear el examen");
+    }
+  };
 
   /* ---------- LISTAR SOLO LOS EXÁMENES DEL VETERINARIO ACTUAL ---------- */
   static getAllLabExams = async (req: Request, res: Response) => {
@@ -171,12 +188,12 @@ static createLabExam = async (req: Request, res: Response) => {
         });
       }
 
-      const exam = await LabExam.findOne({
+      const existingExam = await LabExam.findOne({
         _id: id,
         vetId: req.user._id
       });
 
-      if (!exam) {
+      if (!existingExam) {
         return res.status(404).json({ msg: "Examen no encontrado o no autorizado" });
       }
 
@@ -195,7 +212,7 @@ static createLabExam = async (req: Request, res: Response) => {
     }
   };
 
-  /* ---------- ELIMINAR  ---------- */
+  /* ---------- ELIMINAR ---------- */
   static deleteLabExam = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {
@@ -220,26 +237,24 @@ static createLabExam = async (req: Request, res: Response) => {
     }
   };
 
-/* ---------- OBTENER EXÁMENES POR PACIENTE ---------- */
-static getLabExamsByPatient = async (req: Request, res: Response) => {
-  try {
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ msg: 'Usuario no autenticado' });
+  /* ---------- OBTENER EXÁMENES POR PACIENTE ---------- */
+  static getLabExamsByPatient = async (req: Request, res: Response) => {
+    try {
+      if (!req.user || !req.user._id) {
+        return res.status(401).json({ msg: 'Usuario no autenticado' });
+      }
+
+      const { patientId } = req.params;
+
+      const exams = await LabExam.find({
+        patientId,
+        vetId: req.user._id
+      }).sort({ date: -1 });
+
+      res.json(exams);
+    } catch (error: any) {
+      console.error("Error en getLabExamsByPatient:", error);
+      res.status(500).json({ msg: "Error al obtener exámenes del paciente" });
     }
-
-    const { patientId } = req.params;
-
-    const exams = await LabExam.find({
-      patientId,
-      vetId: req.user._id
-    }).sort({ date: -1 });
-
-    res.json(exams);
-  } catch (error: any) {
-    console.error("Error en getLabExamsByPatient:", error);
-    res.status(500).json({ msg: "Error al obtener exámenes del paciente" });
-  }
-};
-
-
+  };
 }

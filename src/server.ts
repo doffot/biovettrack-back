@@ -18,6 +18,7 @@ import vaccinationRouter from './routes/vaccinationRoutes';
 import dewormingRouter from './routes/dewormingRoutes';
 import consultationRouter from './routes/consultationRoutes';
 import recipeRouter from './routes/recipeRoutes'; // 👈 NUEVO
+import paymentRoutes from './routes/paymentRoutes';
 
 connectDB();
 
@@ -37,7 +38,8 @@ app.use("/api/medical-studies", medicalStudyRouter);
 app.use("/api/vaccinations", vaccinationRouter);
 app.use("/api/dewormings", dewormingRouter);
 app.use("/api/consultations", consultationRouter);
-app.use("/api/recipes", recipeRouter); // 👈 NUEVO
+app.use("/api/recipes", recipeRouter); 
+app.use("/api/payments", paymentRoutes);
 
 app.use('/api/lab-exams', labExamRoutes);
 app.use('/api/patients/:patientId/lab-exams', labExamRoutes);

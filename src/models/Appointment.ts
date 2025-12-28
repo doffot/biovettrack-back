@@ -12,8 +12,9 @@ export interface IAppointment extends Document {
   type: AppointmentType;
   date: Date;
   status: AppointmentStatus;
-  reason: string; // Ej: "Vacuna antirrábica", "Perfil hepático", "Corte de raza"
+  reason: string;
   observations?: string;
+  prepaidAmount?: number; // Monto prepagado (opcional)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,16 +60,20 @@ const AppointmentSchema = new Schema(
       trim: true,
       maxlength: [500, 'Las observaciones no pueden exceder 500 caracteres'],
     },
+    prepaidAmount: {
+      type: Number,
+      required: false,
+      min: [0, 'El monto prepagado no puede ser negativo'],
+      default: 0,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Configuración para toJSON/toObject (por consistencia con tus otros modelos)
 AppointmentSchema.set('toJSON', { virtuals: true });
 AppointmentSchema.set('toObject', { virtuals: true });
 
-// Modelo
 const Appointment = mongoose.model<IAppointment>('Appointment', AppointmentSchema);
 export default Appointment;

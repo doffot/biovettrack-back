@@ -1,6 +1,9 @@
 // src/controllers/OwnerController.ts
 import type { Request, Response } from 'express';
 import Owner from '../models/Owner';
+import Appointment from '../models/Appointment';
+import Patient from '../models/Patient';
+import GroomingService from '../models/GroomingService';
 
 export class OwnerController {
  
@@ -96,6 +99,110 @@ export class OwnerController {
       return res.status(500).json({ msg: 'Error interno del servidor' });
     }
   };
+
+
+  
+  // Obtener citas activas de todas las mascotas de un owner
+ 
+static getOwnerAppointments = async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: 'Usuario no autenticado' });
+    }
+
+    // Verificar que el owner existe y pertenece al veterinario
+    const owner = await Owner.findById(id);
+    if (!owner) {
+      return res.status(404).json({ msg: 'Dueño no encontrado' });
+    }
+
+    if (owner.veterinarian.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ msg: 'Acción no autorizada' });
+    }
+
+    // Obtener todas las mascotas del owner
+    const patients = await Patient.find({ owner: id }).select('_id name');
+    const patientIds = patients.map(p => p._id);
+
+    if (patientIds.length === 0) {
+      return res.json({ appointments: [], totalCount: 0 });
+    }
+
+    // Obtener citas activas (Programada) de todas las mascotas
+    const appointments = await Appointment.find({
+      patient: { $in: patientIds },
+      status: 'Programada'
+    })
+      .populate('patient', 'name species photo')
+      .sort({ date: 1 });
+
+    return res.json({
+      appointments,
+      totalCount: appointments.length
+    });
+
+  } catch (error: any) {
+    console.error('Error en getOwnerAppointments:', error);
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({ msg: 'ID inválido' });
+    }
+
+    return res.status(500).json({ msg: 'Error interno del servidor' });
+  }
+};
+
+/**
+ * Obtener servicios de grooming de todas las mascotas de un owner
+ */
+static getOwnerGroomingServices = async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: 'Usuario no autenticado' });
+    }
+
+    const owner = await Owner.findById(id);
+    if (!owner) {
+      return res.status(404).json({ msg: 'Dueño no encontrado' });
+    }
+
+    if (owner.veterinarian.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ msg: 'Acción no autorizada' });
+    }
+
+    const patients = await Patient.find({ owner: id }).select('_id name');
+    const patientIds = patients.map(p => p._id);
+
+    if (patientIds.length === 0) {
+      return res.json({ services: [], totalCount: 0 });
+    }
+
+    const services = await GroomingService.find({
+      patientId: { $in: patientIds }
+    })
+      .populate('patientId', 'name species photo')
+      .sort({ date: -1 });
+
+    return res.json({
+      services,
+      totalCount: services.length
+    });
+
+  } catch (error: any) {
+    console.error('Error en getOwnerGroomingServices:', error);
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({ msg: 'ID inválido' });
+    }
+
+    return res.status(500).json({ msg: 'Error interno del servidor' });
+  }
+};
+
 
   //  Actualizar dueño por ID
    

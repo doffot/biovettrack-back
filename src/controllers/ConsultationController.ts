@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import Consultation from "../models/Consultation";
 import Patient from "../models/Patient";
 import Invoice from "../models/Invoice";
+import Appointment from "../models/Appointment";
 
 export class ConsultationController {
   static createConsultation = async (req: Request, res: Response) => {
@@ -35,7 +36,24 @@ export class ConsultationController {
 
       await consultation.save();
 
-      // 👇 CREAR FACTURA AUTOMÁTICA
+      // BUSCAR Y COMPLETAR CITA AUTOMÁTICAMENTE
+      try {
+        const openAppointment = await Appointment.findOne({
+          patient: patientId,
+          type: "Consulta",
+          status: "Programada",
+        }).sort({ date: 1 });
+
+        if (openAppointment) {
+          openAppointment.status = "Completada";
+          await openAppointment.save();
+          console.log(`✅ Cita ${openAppointment._id} marcada como Completada`);
+        }
+      } catch (appointmentError) {
+        console.error("⚠️ Error al buscar/actualizar cita:", appointmentError);
+      }
+
+      // CREAR FACTURA AUTOMÁTICA
       try {
         const invoice = new Invoice({
           ownerId: patient.owner,
@@ -55,6 +73,7 @@ export class ConsultationController {
           veterinarianId: req.user._id,
         });
         await invoice.save();
+        console.log("✅ Factura creada:", invoice._id);
       } catch (invoiceError) {
         console.error("⚠️ Error al crear factura para consulta:", invoiceError);
       }
@@ -127,28 +146,26 @@ export class ConsultationController {
   };
 
   static getAllConsultations = async (req: Request, res: Response) => {
-  try {
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ msg: 'Usuario no autenticado' });
+    try {
+      if (!req.user || !req.user._id) {
+        return res.status(401).json({ msg: 'Usuario no autenticado' });
+      }
+
+      const patients = await Patient.find({ mainVet: req.user._id }).select('_id');
+      const patientIds = patients.map(p => p._id);
+
+      const consultations = await Consultation.find({ 
+        patientId: { $in: patientIds } 
+      })
+        .populate('patientId', 'name species breed')
+        .sort({ consultationDate: -1 });
+
+      res.json({ consultations });
+    } catch (error: any) {
+      console.error('Error en getAllConsultations:', error);
+      res.status(500).json({ msg: 'Error al obtener consultas' });
     }
-
-    // Obtener todos los pacientes del veterinario
-    const patients = await Patient.find({ mainVet: req.user._id }).select('_id');
-    const patientIds = patients.map(p => p._id);
-
-    // Obtener todas las consultas de esos pacientes
-    const consultations = await Consultation.find({ 
-      patientId: { $in: patientIds } 
-    })
-      .populate('patientId', 'name species breed')
-      .sort({ consultationDate: -1 });
-
-    res.json({ consultations });
-  } catch (error: any) {
-    console.error('Error en getAllConsultations:', error);
-    res.status(500).json({ msg: 'Error al obtener consultas' });
-  }
-};
+  };
 
   static updateConsultation = async (req: Request, res: Response) => {
     const { id } = req.params;

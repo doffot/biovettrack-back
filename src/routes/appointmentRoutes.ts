@@ -5,7 +5,6 @@ import { handleInputErrors } from '../middleware/validation';
 import { AppointmentController } from '../controllers/AppointmentController';
 import { authenticate } from '../middleware/auth';
 
-// Validaciones para crear cita
 const createAppointmentValidation = [
   param('patientId').isMongoId().withMessage('ID de paciente inválido'),
   body('type')
@@ -27,7 +26,6 @@ const createAppointmentValidation = [
     .isLength({ max: 500 }).withMessage('Las observaciones no pueden exceder 500 caracteres'),
 ];
 
-// ✅ Validación para actualizar estado
 const updateStatusValidation = [
   param('id').isMongoId().withMessage('ID de cita inválido'),
   body('status')
@@ -36,10 +34,8 @@ const updateStatusValidation = [
     .withMessage('Estado de cita no válido'),
 ];
 
-// Router anidado (para crear citas por paciente)
 const patientAppointmentRouter = Router({ mergeParams: true });
 
-// POST /api/patients/:patientId/appointments
 patientAppointmentRouter.post(
   '/',
   authenticate,
@@ -48,27 +44,36 @@ patientAppointmentRouter.post(
   AppointmentController.createAppointment
 );
 
-// GET /api/patients/:patientId/appointments
 patientAppointmentRouter.get(
   '/',
   authenticate,
   AppointmentController.getAppointmentsByPatient
 );
 
-// Exportar router anidado
 export default patientAppointmentRouter;
 
-// ✅ Router global (para operaciones que no dependen de patientId)
 export const globalAppointmentRouter = Router();
 
-// GET /api/appointments - OBTENER TODAS LAS CITAS
 globalAppointmentRouter.get(
   '/',
   authenticate,
   AppointmentController.getAllAppointments
 );
 
-// GET /api/appointments/:id - OBTENER CITA POR ID
+globalAppointmentRouter.get(
+  '/date/:date',
+  authenticate,
+  AppointmentController.getAppointmentsByDateForVeterinarian
+);
+
+// globalAppointmentRouter.get(
+//   '/:id/check-payments',
+//   authenticate,
+//   param('id').isMongoId().withMessage('ID de cita inválido'),
+//   handleInputErrors,
+//   AppointmentController.checkAppointmentPayments
+// );
+
 globalAppointmentRouter.get(
   '/:id',
   authenticate,
@@ -77,7 +82,6 @@ globalAppointmentRouter.get(
   AppointmentController.getAppointmentById
 );
 
-// PATCH /api/appointments/:id/status
 globalAppointmentRouter.patch(
   '/:id/status',
   authenticate,
@@ -86,7 +90,6 @@ globalAppointmentRouter.patch(
   AppointmentController.updateAppointmentStatus
 );
 
-// DELETE /api/appointments/:id - ELIMINAR CITA
 globalAppointmentRouter.delete(
   '/:id',
   authenticate,
@@ -95,14 +98,6 @@ globalAppointmentRouter.delete(
   AppointmentController.deleteAppointment
 );
 
-// GET /api/appointments/date/:date - CITAS POR FECHA
-globalAppointmentRouter.get(
-  '/date/:date',
-  authenticate,
-  AppointmentController.getAppointmentsByDateForVeterinarian
-);
-
-// PATCH /api/appointments/:id
 globalAppointmentRouter.patch(
   '/:id',
   authenticate,

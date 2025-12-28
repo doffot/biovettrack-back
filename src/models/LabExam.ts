@@ -3,14 +3,13 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ILabExam extends Document {
   vetId: Types.ObjectId;
-  patientId?: Types.ObjectId; // Opcional
-  patientName: string;        s
-  species: string;           
+  patientId?: Types.ObjectId;
+  patientName: string;
+  species: string;
   breed?: string;
   sex?: string;
   age?: string;
   weight?: number;
-
 
   cost: number;
 
@@ -35,9 +34,8 @@ export interface ILabExam extends Document {
   hemotropico?: string;
   observacion?: string;
 
- 
-  ownerName?: string;   
-  ownerPhone?: string; 
+  ownerName?: string;
+  ownerPhone?: string;
 
   createdAt: Date;
   updatedAt: Date;
@@ -45,13 +43,13 @@ export interface ILabExam extends Document {
 
 const DifferentialSchema = new Schema({
   segmentedNeutrophils: { type: Number, min: 0, max: 100, default: 0 },
-  bandNeutrophils:     { type: Number, min: 0, max: 100, default: 0 },
-  lymphocytes:         { type: Number, min: 0, max: 100, default: 0 },
-  monocytes:           { type: Number, min: 0, max: 100, default: 0 },
-  basophils:           { type: Number, min: 0, max: 100, default: 0 },
-  reticulocytes:       { type: Number, min: 0, max: 100, default: 0 },
-  eosinophils:         { type: Number, min: 0, max: 100, default: 0 },
-  nrbc:                { type: Number, min: 0, max: 100, default: 0 },
+  bandNeutrophils:      { type: Number, min: 0, max: 100, default: 0 },
+  lymphocytes:          { type: Number, min: 0, max: 100, default: 0 },
+  monocytes:            { type: Number, min: 0, max: 100, default: 0 },
+  basophils:            { type: Number, min: 0, max: 100, default: 0 },
+  reticulocytes:        { type: Number, min: 0, max: 100, default: 0 },
+  eosinophils:          { type: Number, min: 0, max: 100, default: 0 },
+  nrbc:                 { type: Number, min: 0, max: 100, default: 0 },
 }, { _id: false });
 
 const LabExamSchema: Schema = new Schema({
@@ -64,7 +62,7 @@ const LabExamSchema: Schema = new Schema({
   patientId: {
     type: Types.ObjectId,
     ref: 'Patient',
-    required: false // 👈 Opcional
+    required: false
   },
 
   patientName: { 
@@ -82,7 +80,6 @@ const LabExamSchema: Schema = new Schema({
   age: { type: String, trim: true },
   weight: { type: Number, min: 0 },
 
-  
   cost: {
     type: Number,
     required: [true, "El costo del examen es obligatorio"],
@@ -101,12 +98,11 @@ const LabExamSchema: Schema = new Schema({
   hemotropico: { type: String, trim: true },
   observacion: { type: String, trim: true },
 
-  // 👇 Solo si es paciente referido
   ownerName: {
     type: String,
     trim: true,
     required: function(this: any) {
-      return !this.patientId; // Obligatorio solo si no hay patientId
+      return !this.patientId;
     },
     validate: {
       validator: (value: string) => value?.trim().length > 0,

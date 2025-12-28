@@ -116,4 +116,22 @@ router.post(
   PatientController.createPatient
 );
 
+// GET /owners/:id/appointments - Obtener citas activas del owner
+router.get(
+  '/:id/appointments',
+  authenticate,
+  param('id').isMongoId().withMessage('ID de dueño inválido'),
+  handleInputErrors,
+  OwnerController.getOwnerAppointments
+);
+
+// GET /owners/:id/grooming-services
+router.get(
+  '/:id/grooming-services',
+  authenticate,
+  param('id').isMongoId().withMessage('ID de dueño inválido'),
+  handleInputErrors,
+  OwnerController.getOwnerGroomingServices
+);
+
 export default router;
