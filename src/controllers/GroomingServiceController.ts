@@ -163,36 +163,39 @@ export class GroomingServiceController {
   };
 
   /* ---------- OBTENER TODOS LOS SERVICIOS ---------- */
-  static getAllGroomingServices = async (req: Request, res: Response) => {
-    try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
-      }
-
-      const patientIds = await Patient.find(
-        { mainVet: req.user._id },
-        '_id'
-      ).distinct('_id');
-
-      if (patientIds.length === 0) {
-        return res.json({ services: [] });
-      }
-
-      const services = await GroomingService.find({
-        patientId: { $in: patientIds }
-      })
-        .populate('patientId')
-        .populate('groomer')
-        .sort({ date: -1 });
-
-      res.json({ services });
-    } catch (error: any) {
-      console.error('Error en getAllGroomingServices:', error);
-      res.status(500).json({
-        msg: error.message || "Error al obtener servicios de peluquería"
-      });
+static getAllGroomingServices = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: 'Usuario no autenticado' });
     }
-  };
+
+    const patientIds = await Patient.find(
+      { mainVet: req.user._id },
+      '_id'
+    ).distinct('_id');
+
+    if (patientIds.length === 0) {
+      return res.json({ services: [] });
+    }
+
+    const services = await GroomingService.find({
+      patientId: { $in: patientIds }
+    })
+      .populate({
+        path: 'patientId',
+        populate: { path: 'owner' }
+      })
+      .populate('groomer')
+      .sort({ date: -1 });
+
+    res.json({ services });
+  } catch (error: any) {
+    console.error('Error en getAllGroomingServices:', error);
+    res.status(500).json({
+      msg: error.message || "Error al obtener servicios de peluquería"
+    });
+  }
+};
 
   /* ---------- OBTENER UNO POR ID ---------- */
   static getGroomingServiceById = async (req: Request, res: Response) => {
