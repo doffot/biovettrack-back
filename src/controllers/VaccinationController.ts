@@ -4,6 +4,9 @@ import Vaccination from "../models/Vaccination";
 import Patient from "../models/Patient";
 import Invoice from "../models/Invoice";
 import Appointment from "../models/Appointment";
+import Product from "../models/Product";
+import Inventory from "../models/Inventory";
+import InventoryMovement from "../models/InventoryMovement";
 
 export class VaccinationController {
   /* ---------- CREAR VACUNA ---------- */
@@ -29,13 +32,82 @@ export class VaccinationController {
         return res.status(404).json({ msg: "Paciente no encontrado o no autorizado" });
       }
 
+      // 👇 Lógica para producto del catálogo
+      let finalCost = data.cost;
+      let finalVaccineType = data.vaccineType;
+
+      if (data.productId) {
+        const product = await Product.findOne({
+          _id: data.productId,
+          veterinarian: req.user._id
+        });
+        if (!product) {
+          return res.status(404).json({ msg: "Producto no encontrado o no autorizado" });
+        }
+        finalCost = product.salePrice;
+        finalVaccineType = product.name;
+      }
+
       const vaccination = new Vaccination({
         ...data,
         patientId,
         veterinarianId: req.user._id,
+        vaccineType: finalVaccineType,
+        cost: finalCost,
       });
 
       await vaccination.save();
+
+      // 👇 CONSUMIR STOCK si se usó un producto del catálogo
+      if (data.productId) {
+        const product = await Product.findOne({
+          _id: data.productId,
+          veterinarian: req.user._id
+        });
+        
+        if (!product) {
+          return res.status(404).json({ msg: "Producto no encontrado o no autorizado" });
+        }
+
+        // Validar que sea no divisible (vacunas normalmente no lo son)
+        if (product.divisible) {
+          return res.status(400).json({ 
+            msg: "Las vacunas deben ser productos no divisibles. Usa unidades completas." 
+          });
+        }
+
+        // Obtener inventario
+        const inventory = await Inventory.findOne({
+          product: data.productId,
+          veterinarian: req.user._id
+        });
+
+        if (!inventory || inventory.stockUnits < 1) {
+          return res.status(400).json({ 
+            msg: `Stock insuficiente. Solo hay ${inventory?.stockUnits || 0} ${product.unit}(s) disponibles` 
+          });
+        }
+
+        // Consumir 1 unidad completa
+        inventory.stockUnits -= 1;
+        inventory.lastMovement = new Date();
+        await inventory.save();
+
+        // Crear movimiento de inventario
+        const movement = new InventoryMovement({
+          product: data.productId,
+          type: "salida",
+          reason: "uso_clinico",
+          quantityUnits: 1,
+          quantityDoses: 0,
+          stockAfterUnits: inventory.stockUnits,
+          stockAfterDoses: inventory.stockDoses,
+          referenceType: "Vaccination",
+          referenceId: vaccination._id,
+          createdBy: req.user._id,
+        });
+        await movement.save();
+      }
 
       // BUSCAR Y COMPLETAR CITA AUTOMÁTICAMENTE
       try {
@@ -62,14 +134,14 @@ export class VaccinationController {
           items: [
             {
               type: "vacuna",
-              resourceId: vaccination._id,
-              description: `${vaccination.vaccineType} - ${patient.name}`,
-              cost: vaccination.cost,
+              resourceId: data.productId || vaccination._id,
+              description: `${finalVaccineType} - ${patient.name}`,
+              cost: finalCost,
               quantity: 1,
             },
           ],
           currency: "USD",
-          total: vaccination.cost,
+          total: finalCost,
           amountPaid: 0,
           paymentStatus: "Pendiente",
           date: new Date(),
@@ -112,9 +184,11 @@ export class VaccinationController {
         return res.status(404).json({ msg: "Paciente no encontrado o no autorizado" });
       }
 
-      const vaccinations = await Vaccination.find({ patientId }).sort({
-        vaccinationDate: -1,
-      });
+      const vaccinations = await Vaccination.find({ patientId })
+        .populate("productId", "name category salePrice")
+        .sort({
+          vaccinationDate: -1,
+        });
 
       res.json({ vaccinations });
     } catch (error: any) {
@@ -134,6 +208,7 @@ export class VaccinationController {
         veterinarianId: req.user._id,
       })
         .populate("patientId", "name species breed")
+        .populate("productId", "name category salePrice")
         .sort({ vaccinationDate: -1 });
 
       res.json({ vaccinations });
@@ -153,7 +228,7 @@ export class VaccinationController {
       const vaccination = await Vaccination.findOne({
         _id: req.params.id,
         veterinarianId: req.user._id,
-      });
+      }).populate("productId", "name category salePrice");
 
       if (!vaccination) {
         return res.status(404).json({ msg: "Vacuna no encontrada o no autorizada" });
@@ -185,10 +260,33 @@ export class VaccinationController {
         return res.status(404).json({ msg: "Vacuna no encontrada o no autorizada" });
       }
 
-      const updatedVaccination = await Vaccination.findByIdAndUpdate(id, data, {
-        new: true,
-        runValidators: true,
-      });
+      // 👇 Lógica para producto al actualizar
+      let finalCost = data.cost !== undefined ? data.cost : existingVaccination.cost;
+      let finalVaccineType = data.vaccineType !== undefined ? data.vaccineType : existingVaccination.vaccineType;
+
+      if (data.productId) {
+        const product = await Product.findById(data.productId);
+        if (!product) {
+          return res.status(404).json({ msg: "Producto no encontrado" });
+        }
+        finalCost = product.salePrice;
+        finalVaccineType = product.name;
+      }
+
+      const updateData = {
+        ...data,
+        vaccineType: finalVaccineType,
+        cost: finalCost,
+      };
+
+      const updatedVaccination = await Vaccination.findByIdAndUpdate(
+        id,
+        updateData,
+        {
+          new: true,
+          runValidators: true,
+        }
+      ).populate("productId", "name category salePrice");
 
       res.json({
         msg: "Vacuna actualizada correctamente",

@@ -19,6 +19,10 @@ import dewormingRouter from './routes/dewormingRoutes';
 import consultationRouter from './routes/consultationRoutes';
 import recipeRouter from './routes/recipeRoutes'; // 👈 NUEVO
 import paymentRoutes from './routes/paymentRoutes';
+import productRoutes from './routes/productRoutes';
+import inventoryRoutes from './routes/inventoryRoutes';
+import purchaseRoutes from './routes/purchaseRoutes';
+import saleRoutes from './routes/saleRoutes';
 
 connectDB();
 
@@ -40,6 +44,10 @@ app.use("/api/dewormings", dewormingRouter);
 app.use("/api/consultations", consultationRouter);
 app.use("/api/recipes", recipeRouter); 
 app.use("/api/payments", paymentRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/purchases", purchaseRoutes);
+app.use("/api/sales", saleRoutes);
 
 app.use('/api/lab-exams', labExamRoutes);
 app.use('/api/patients/:patientId/lab-exams', labExamRoutes);

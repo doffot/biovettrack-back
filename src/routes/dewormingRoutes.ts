@@ -9,11 +9,8 @@ const router = Router();
 
 router.use(authenticate);
 
+router.get("/", DewormingController.getAllDewormings);
 
-router.get(
-  "/",
-  DewormingController.getAllDewormings
-);
 /* POST /api/dewormings/:patientId */
 router.post(
   "/:patientId",
@@ -25,17 +22,22 @@ router.post(
     body("dewormingType")
       .notEmpty().withMessage("El tipo de desparasitación es obligatorio")
       .isIn(["Interna", "Externa", "Ambas"]).withMessage("Tipo inválido: debe ser Interna, Externa o Ambas"),
+    // 👇 productName es opcional si se envía productId
     body("productName")
-      .notEmpty().withMessage("El nombre del producto es obligatorio")
+      .optional()
       .isString().withMessage("Debe ser texto")
       .trim().isLength({ max: 100 }).withMessage("Máximo 100 caracteres"),
     body("dose")
-      .notEmpty().withMessage("La dosis aplicada es obligatoria")
+      .optional() // ← opcional si se usa producto, pero puedes dejarlo obligatorio si siempre necesitas dosis
       .isString().withMessage("Debe ser texto")
       .trim().isLength({ max: 50 }).withMessage("Máximo 50 caracteres"),
+    // 👇 cost es opcional si se envía productId
     body("cost")
-      .notEmpty().withMessage("El costo es obligatorio")
+      .optional()
       .isFloat({ min: 0 }).withMessage("El costo debe ser un número positivo"),
+    body("productId")
+      .optional()
+      .isMongoId().withMessage("ID de producto inválido"),
     body("nextApplicationDate")
       .optional()
       .isISO8601().withMessage("Fecha de próxima aplicación inválida"),
@@ -82,6 +84,9 @@ router.put(
     body("cost")
       .optional()
       .isFloat({ min: 0 }).withMessage("El costo debe ser un número positivo"),
+    body("productId")
+      .optional()
+      .isMongoId().withMessage("ID de producto inválido"),
     body("nextApplicationDate")
       .optional()
       .isISO8601().withMessage("Fecha de próxima aplicación inválida"),

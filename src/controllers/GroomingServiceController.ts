@@ -80,10 +80,8 @@ export class GroomingServiceController {
         if (openAppointment) {
           openAppointment.status = "Completada";
           await openAppointment.save();
-          console.log(`✅ Cita ${openAppointment._id} marcada como Completada`);
         }
       } catch (appointmentError) {
-        console.error("⚠️ Error al buscar/actualizar cita:", appointmentError);
       }
 
       // CREAR FACTURA AUTOMÁTICAMENTE
@@ -106,9 +104,7 @@ export class GroomingServiceController {
           veterinarianId: req.user._id,
         });
         await invoice.save();
-        console.log("✅ Factura creada:", invoice._id);
       } catch (invoiceError) {
-        console.error("⚠️ Error al crear factura para grooming:", invoiceError);
       }
 
       const populatedService = await GroomingService.findById(groomingService._id)
@@ -124,7 +120,6 @@ export class GroomingServiceController {
       if (error.name === 'ValidationError') {
         return res.status(400).json({ msg: "Datos inválidos", errors: error.errors });
       }
-      console.error('Error en createGroomingService:', error);
       return res.status(500).json({ msg: 'Error al registrar el servicio de peluquería' });
     }
   };

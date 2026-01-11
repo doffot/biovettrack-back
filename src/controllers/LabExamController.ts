@@ -13,11 +13,14 @@ export class LabExamController {
 
     try {
       if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
+        return res.status(401).json({ msg: "Usuario no autenticado" });
       }
 
       // Validar conteo diferencial
-      if (data.differentialCount && !validateDifferentialSum(data.differentialCount)) {
+      if (
+        data.differentialCount &&
+        !validateDifferentialSum(data.differentialCount)
+      ) {
         return res.status(400).json({
           msg: "La suma del conteo diferencial no puede superar 100",
         });
@@ -37,71 +40,95 @@ export class LabExamController {
             patient: labExam.patientId,
             type: "Laboratorio",
             status: "Programada",
-          }).sort({ date: 1 }); // La más próxima
+          }).sort({ date: 1 });
 
           if (openAppointment) {
             openAppointment.status = "Completada";
             await openAppointment.save();
-            console.log(`✅ Cita ${openAppointment._id} marcada como Completada`);
+            console.log(
+              ` Cita ${openAppointment._id} marcada como Completada`
+            );
           }
         } catch (appointmentError) {
-          console.error("⚠️ Error al buscar/actualizar cita:", appointmentError);
+          console.error(
+            " Error al buscar/actualizar cita:",
+            appointmentError
+          );
         }
       }
 
       // CREAR FACTURA AUTOMÁTICAMENTE
       try {
         const isReferredPatient = !labExam.patientId;
-        
+
         let invoiceData: any;
-        
+
         if (isReferredPatient) {
-          const exchangeRate = data.exchangeRate;
-          
-          if (!exchangeRate || exchangeRate <= 0) {
-            console.error("⚠️ No se recibió tasa de cambio válida");
-            throw new Error("Tasa de cambio no proporcionada");
+          //  Cliente referido - Procesar pago 
+          const exchangeRate = data.exchangeRate || 1;
+          const paymentAmount = data.paymentAmount || 0;
+          const paymentCurrency = data.paymentCurrency || "USD";
+          const creditUsed = data.creditAmountUsed || 0;
+
+          //  Calcular montos separados para USD y Bs
+          let amountPaidUSD = 0;
+          let amountPaidBs = 0;
+
+          if (paymentCurrency === "Bs" && exchangeRate > 0) {
+            amountPaidBs = paymentAmount;
+          } else {
+            amountPaidUSD = paymentAmount;
           }
-          
-          const amountInBs = data.amount || parseFloat((labExam.cost * exchangeRate).toFixed(2));
-          
+
+          // Sumar crédito (siempre es en USD)
+          amountPaidUSD += creditUsed;
+
           invoiceData = {
-            items: [{
-              type: "labExam",
-              resourceId: labExam._id,
-              description: `Hemograma - ${labExam.patientName}`,
-              cost: labExam.cost,
-              quantity: 1,
-            }],
-            currency: "Bs",
+            items: [
+              {
+                type: "labExam",
+                resourceId: labExam._id,
+                description: `Hemograma - ${labExam.patientName}`,
+                cost: labExam.cost,
+                quantity: 1,
+              },
+            ],
+            currency: "USD",
             exchangeRate: exchangeRate,
-            total: amountInBs,
-            amountPaid: amountInBs,
-            paymentStatus: "Pagado",
+            total: labExam.cost,
+            amountPaidUSD: parseFloat(amountPaidUSD.toFixed(2)),
+            amountPaidBs: parseFloat(amountPaidBs.toFixed(2)),
+            // amountPaid y paymentStatus se calculan en el middleware
             date: new Date(),
             veterinarianId: req.user._id,
             ownerName: labExam.ownerName,
             ownerPhone: labExam.ownerPhone,
-            paymentMethod: data.paymentMethodId || data.paymentMethod,
-            paymentReference: data.paymentReference || data.reference,
+            paymentMethod: data.paymentMethodId,
+            paymentReference: data.paymentReference,
           };
+
+         
         } else {
+          // ✅ Cliente con paciente registrado - factura pendiente
           invoiceData = {
-            items: [{
-              type: "labExam",
-              resourceId: labExam._id,
-              description: `Hemograma - ${labExam.patientName}`,
-              cost: labExam.cost,
-              quantity: 1,
-            }],
+            items: [
+              {
+                type: "labExam",
+                resourceId: labExam._id,
+                description: `Hemograma - ${labExam.patientName}`,
+                cost: labExam.cost,
+                quantity: 1,
+              },
+            ],
             currency: "USD",
             total: labExam.cost,
-            amountPaid: 0,
-            paymentStatus: "Pendiente",
+            amountPaidUSD: 0,
+            amountPaidBs: 0,
+            // amountPaid y paymentStatus se calculan en el middleware
             date: new Date(),
             veterinarianId: req.user._id,
           };
-          
+
           const patient = await Patient.findById(labExam.patientId);
           if (patient) {
             invoiceData.ownerId = patient.owner;
@@ -111,15 +138,13 @@ export class LabExamController {
 
         const invoice = new Invoice(invoiceData);
         await invoice.save();
-        
-        console.log("✅ Factura creada:", {
-          id: invoice._id,
-          exchangeRate: invoice.exchangeRate,
-          total: invoice.total
-        });
-        
+
+       
       } catch (invoiceError) {
-        console.error("⚠️ Error al crear factura (examen guardado):", invoiceError);
+        console.error(
+          " Error al crear factura (examen guardado):",
+          invoiceError
+        );
       }
 
       res.status(201).json(labExam);
@@ -133,11 +158,11 @@ export class LabExamController {
   static getAllLabExams = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
+        return res.status(401).json({ msg: "Usuario no autenticado" });
       }
 
       const exams = await LabExam.find({
-        vetId: req.user._id
+        vetId: req.user._id,
       }).sort({ createdAt: -1 });
 
       res.json(exams);
@@ -151,18 +176,20 @@ export class LabExamController {
   static getLabExamById = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
+        return res.status(401).json({ msg: "Usuario no autenticado" });
       }
 
       const { id } = req.params;
 
       const exam = await LabExam.findOne({
         _id: id,
-        vetId: req.user._id
+        vetId: req.user._id,
       });
 
       if (!exam) {
-        return res.status(404).json({ msg: "Examen no encontrado o no autorizado" });
+        return res
+          .status(404)
+          .json({ msg: "Examen no encontrado o no autorizado" });
       }
 
       res.json(exam);
@@ -176,13 +203,16 @@ export class LabExamController {
   static updateLabExam = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
+        return res.status(401).json({ msg: "Usuario no autenticado" });
       }
 
       const { id } = req.params;
       const data = req.body;
 
-      if (data.differentialCount && !validateDifferentialSum(data.differentialCount)) {
+      if (
+        data.differentialCount &&
+        !validateDifferentialSum(data.differentialCount)
+      ) {
         return res.status(400).json({
           msg: "La suma del conteo diferencial no puede superar 100",
         });
@@ -190,11 +220,13 @@ export class LabExamController {
 
       const existingExam = await LabExam.findOne({
         _id: id,
-        vetId: req.user._id
+        vetId: req.user._id,
       });
 
       if (!existingExam) {
-        return res.status(404).json({ msg: "Examen no encontrado o no autorizado" });
+        return res
+          .status(404)
+          .json({ msg: "Examen no encontrado o no autorizado" });
       }
 
       const updated = await LabExam.findByIdAndUpdate(id, data, {
@@ -216,18 +248,20 @@ export class LabExamController {
   static deleteLabExam = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
+        return res.status(401).json({ msg: "Usuario no autenticado" });
       }
 
       const { id } = req.params;
 
       const exam = await LabExam.findOneAndDelete({
         _id: id,
-        vetId: req.user._id
+        vetId: req.user._id,
       });
 
       if (!exam) {
-        return res.status(404).json({ msg: "Examen no encontrado o no autorizado" });
+        return res
+          .status(404)
+          .json({ msg: "Examen no encontrado o no autorizado" });
       }
 
       res.json({ msg: "Examen eliminado correctamente" });
@@ -241,14 +275,14 @@ export class LabExamController {
   static getLabExamsByPatient = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
+        return res.status(401).json({ msg: "Usuario no autenticado" });
       }
 
       const { patientId } = req.params;
 
       const exams = await LabExam.find({
         patientId,
-        vetId: req.user._id
+        vetId: req.user._id,
       }).sort({ date: -1 });
 
       res.json(exams);

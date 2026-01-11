@@ -1,19 +1,16 @@
 // src/routes/vaccinationRoutes.ts
 import { Router } from "express";
 import { body, param } from "express-validator";
-import {  handleInputErrors } from "../middleware/validation";
+import { handleInputErrors } from "../middleware/validation";
 import { authenticate } from "../middleware/auth";
 import { VaccinationController } from "../controllers/VaccinationController";
 
 const router = Router();
 
-//  Aplicar middleware de autenticación a todas las rutas
+// Aplicar middleware de autenticación a todas las rutas
 router.use(authenticate);
 
-router.get(
-  "/",
-  VaccinationController.getAllVaccinations
-);
+router.get("/", VaccinationController.getAllVaccinations);
 
 /* POST /api/vaccinations/:patientId */
 router.post(
@@ -21,33 +18,56 @@ router.post(
   [
     param("patientId").isMongoId().withMessage("ID de paciente inválido"),
     body("vaccinationDate")
-      .notEmpty().withMessage("La fecha de vacunación es obligatoria")
-      .isISO8601().withMessage("Fecha inválida"),
+      .notEmpty()
+      .withMessage("La fecha de vacunación es obligatoria")
+      .isISO8601()
+      .withMessage("Fecha inválida"),
+    // 👇 vaccineType es opcional si se envía productId
     body("vaccineType")
-      .notEmpty().withMessage("El tipo de vacuna es obligatorio")
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 50 }).withMessage("Máximo 50 caracteres"),
+      .optional()
+      .isString()
+      .withMessage("Debe ser texto")
+      .trim()
+      .isLength({ max: 50 })
+      .withMessage("Máximo 50 caracteres"),
+    // 👇 cost es opcional si se envía productId
     body("cost")
-      .notEmpty().withMessage("El costo es obligatorio")
-      .isFloat({ min: 0 }).withMessage("El costo debe ser un número positivo"),
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("El costo debe ser un número positivo"),
+    body("productId")
+      .optional()
+      .isMongoId()
+      .withMessage("ID de producto inválido"),
     body("laboratory")
       .optional()
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 100 }).withMessage("Máximo 100 caracteres"),
+      .isString()
+      .withMessage("Debe ser texto")
+      .trim()
+      .isLength({ max: 100 })
+      .withMessage("Máximo 100 caracteres"),
     body("batchNumber")
       .optional()
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 50 }).withMessage("Máximo 50 caracteres"),
+      .isString()
+      .withMessage("Debe ser texto")
+      .trim()
+      .isLength({ max: 50 })
+      .withMessage("Máximo 50 caracteres"),
     body("expirationDate")
       .optional()
-      .isISO8601().withMessage("Fecha de vencimiento inválida"),
+      .isISO8601()
+      .withMessage("Fecha de vencimiento inválida"),
     body("nextVaccinationDate")
       .optional()
-      .isISO8601().withMessage("Fecha de próxima vacuna inválida"),
+      .isISO8601()
+      .withMessage("Fecha de próxima vacuna inválida"),
     body("observations")
       .optional()
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 300 }).withMessage("Máximo 300 caracteres"),
+      .isString()
+      .withMessage("Debe ser texto")
+      .trim()
+      .isLength({ max: 300 })
+      .withMessage("Máximo 300 caracteres"),
   ],
   handleInputErrors,
   VaccinationController.createVaccination
@@ -74,34 +94,51 @@ router.put(
   "/:id",
   [
     param("id").isMongoId().withMessage("ID de vacuna inválido"),
-    body("vaccinationDate")
-      .optional()
-      .isISO8601().withMessage("Fecha inválida"),
+    body("vaccinationDate").optional().isISO8601().withMessage("Fecha inválida"),
     body("vaccineType")
       .optional()
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 50 }).withMessage("Máximo 50 caracteres"),
+      .isString()
+      .withMessage("Debe ser texto")
+      .trim()
+      .isLength({ max: 50 })
+      .withMessage("Máximo 50 caracteres"),
     body("cost")
       .optional()
-      .isFloat({ min: 0 }).withMessage("El costo debe ser un número positivo"),
+      .isFloat({ min: 0 })
+      .withMessage("El costo debe ser un número positivo"),
+    body("productId")
+      .optional()
+      .isMongoId()
+      .withMessage("ID de producto inválido"),
     body("laboratory")
       .optional()
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 100 }).withMessage("Máximo 100 caracteres"),
+      .isString()
+      .withMessage("Debe ser texto")
+      .trim()
+      .isLength({ max: 100 })
+      .withMessage("Máximo 100 caracteres"),
     body("batchNumber")
       .optional()
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 50 }).withMessage("Máximo 50 caracteres"),
+      .isString()
+      .withMessage("Debe ser texto")
+      .trim()
+      .isLength({ max: 50 })
+      .withMessage("Máximo 50 caracteres"),
     body("expirationDate")
       .optional()
-      .isISO8601().withMessage("Fecha de vencimiento inválida"),
+      .isISO8601()
+      .withMessage("Fecha de vencimiento inválida"),
     body("nextVaccinationDate")
       .optional()
-      .isISO8601().withMessage("Fecha de próxima vacuna inválida"),
+      .isISO8601()
+      .withMessage("Fecha de próxima vacuna inválida"),
     body("observations")
       .optional()
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 300 }).withMessage("Máximo 300 caracteres"),
+      .isString()
+      .withMessage("Debe ser texto")
+      .trim()
+      .isLength({ max: 300 })
+      .withMessage("Máximo 300 caracteres"),
   ],
   handleInputErrors,
   VaccinationController.updateVaccination
