@@ -8,13 +8,30 @@ import { ConsultationController } from "../controllers/ConsultationController";
 const router = Router();
 router.use(authenticate);
 
+/* ✅ NUEVAS RUTAS PARA BORRADORES (antes de las rutas con :id) */
+/* GET /api/consultations/draft/:patientId - Obtener borrador */
+router.get(
+  "/draft/:patientId",
+  param("patientId").isMongoId().withMessage("ID de paciente inválido"),
+  handleInputErrors,
+  ConsultationController.getDraft
+);
+
+/* POST /api/consultations/draft/:patientId - Guardar borrador (sin validaciones estrictas) */
+router.post(
+  "/draft/:patientId",
+  param("patientId").isMongoId().withMessage("ID de paciente inválido"),
+  handleInputErrors,
+  ConsultationController.saveDraft
+);
+
 /* GET /api/consultations - Todas las consultas del veterinario */
 router.get(
   "/",
   ConsultationController.getAllConsultations
 );
 
-/* POST /api/consultations/:patientId */
+/* POST /api/consultations/:patientId - Crear/Finalizar consulta */
 router.post(
   "/:patientId",
   [
