@@ -36,7 +36,7 @@ const ProductSchema = new Schema(
       required: [true, "El nombre del producto es obligatorio"],
       trim: true,
       maxlength: [100, "El nombre no puede exceder 100 caracteres"],
-      unique: true,
+      // ⚠️ unique: true REMOVIDO → ya no es único global
     },
     description: {
       type: String,
@@ -102,8 +102,8 @@ const ProductSchema = new Schema(
   }
 );
 
-// Índices
-ProductSchema.index({ name: 1 });
+// ✅ Índices actualizados
+ProductSchema.index({ name: 1, veterinarian: 1 }, { unique: true }); // Nombre único por veterinario
 ProductSchema.index({ category: 1 });
 ProductSchema.index({ veterinarian: 1 });
 

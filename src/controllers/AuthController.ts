@@ -10,66 +10,79 @@ import Staff from "../models/Staff";
 
 export class AuthController {
   static createAccount = async (req: Request, res: Response) => {
-  try {
-    const { email, password, cedula, whatsapp } = req.body;
-
-    // Validar email
-    const existingEmail = await Veterinarian.findOne({ email });
-    if (existingEmail) {
-      return res.status(409).json({ error: "Este correo electrónico ya está registrado" });
-    }
-
-    // Validar cédula
-    const existingCedula = await Veterinarian.findOne({ cedula });
-    if (existingCedula) {
-      return res.status(409).json({ error: "Esta cédula ya está registrada" });
-    }
-
-    // Validar WhatsApp
-    const existingWhatsapp = await Veterinarian.findOne({ whatsapp });
-    if (existingWhatsapp) {
-      return res.status(409).json({ error: "Este número de WhatsApp ya está registrado" });
-    }
-
-    // Si todo está bien, crear la cuenta
-    const veterinarian = new Veterinarian(req.body);
-    veterinarian.password = await hashPassword(password);
-
-    const token = new Token();
-    token.token = generateToken();
-    token.veterinarian = veterinarian.id;
-
-    // Enviar email de confirmación
-    AuthEmail.sendConfirmationEmail({
-      email: veterinarian.email,
-      name: veterinarian.name,
-      token: token.token,
-    });
-
-    await Promise.all([veterinarian.save(), token.save()]);
-
-    // Crear Staff
     try {
-      const staff = new Staff({
-        name: veterinarian.name,
-        lastName: veterinarian.lastName,
-        role: "veterinario",
-        isOwner: true,
-        veterinarianId: veterinarian._id,
-        phone: veterinarian.whatsapp || undefined,
-        active: true,
-      });
-      await staff.save();
-    } catch (staffError) {
-      console.warn("No se pudo crear la entrada de Staff para el dueño:", staffError);
-    }
+      const { password, email, ci, whatsapp } = req.body;
 
-    res.status(201).send("Cuenta creada correctamente. Revisa tu email para confirmar las credenciales.");
-  } catch (error) {
-    console.error("Error en createAccount:", error);
-    res.status(500).json({ error: "Error al crear la cuenta" });
-  }
-};
+      // Validar email duplicado
+      const veterinarianByEmail = await Veterinarian.findOne({ email });
+      if (veterinarianByEmail) {
+        const error = new Error("El email ya está registrado");
+        return res.status(409).json({ error: error.message });
+      }
+
+      // Validar cédula duplicada
+      if (ci) {
+        const veterinarianByCi = await Veterinarian.findOne({ ci });
+        if (veterinarianByCi) {
+          const error = new Error("La cédula ya está registrada");
+          return res.status(409).json({ error: error.message });
+        }
+      }
+
+      // Validar teléfono duplicado
+      if (whatsapp) {
+        const veterinarianByWhatsapp = await Veterinarian.findOne({ whatsapp });
+        if (veterinarianByWhatsapp) {
+          const error = new Error("El número de WhatsApp ya está registrado");
+          return res.status(409).json({ error: error.message });
+        }
+      }
+
+      const veterinarian = new Veterinarian(req.body);
+      veterinarian.password = await hashPassword(password);
+
+      // Generar token
+      const token = new Token();
+      token.token = generateToken();
+      token.veterinarian = veterinarian.id;
+
+      // Enviar email
+      AuthEmail.sendConfirmationEmail({
+        email: veterinarian.email,
+        name: veterinarian.name,
+        token: token.token,
+      });
+
+      await veterinarian.save();
+      await token.save();
+
+      // Crear Staff
+      try {
+        const staff = new Staff({
+          name: veterinarian.name,
+          lastName: veterinarian.lastName,
+          role: "veterinario",
+          isOwner: true,
+          veterinarianId: veterinarian._id,
+          phone: veterinarian.whatsapp || undefined,
+          active: true,
+        });
+        await staff.save();
+      } catch (staffError) {
+        console.warn(
+          "No se pudo crear la entrada de Staff para el dueño:",
+          staffError
+        );
+      }
+
+      res.send(
+        "Cuenta creada correctamente, revisa tu email para confirmar las credenciales"
+      );
+    } catch (error) {
+      console.error("Error en createAccount:", error);
+      res.status(500).json({ error: "Error al crear cuenta" });
+    }
+  };
 
   static confirmAccount = async (req: Request, res: Response) => {
     try {
