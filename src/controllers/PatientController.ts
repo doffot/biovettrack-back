@@ -5,6 +5,7 @@ import Owner from "../models/Owner";
 import cloudinary from "../config/cloudinary";
 import mongoose from "mongoose";
 import fs from "fs/promises"; 
+import Veterinarian from "../models/Veterinarian";
 
 export class PatientController {
   /* ---------- CREAR ---------- */
@@ -32,7 +33,6 @@ export class PatientController {
 
       let photoUrl = null;
       if (req.file) {
-        console.log('📄 Subiendo archivo:', req.file.path);
         try {
           const result = await cloudinary.uploader.upload(req.file.path, {
             folder: 'pets',
@@ -41,13 +41,10 @@ export class PatientController {
             fetch_format: 'auto'
           });
           photoUrl = result.secure_url;
-          console.log('✅ Foto subida a Cloudinary:', photoUrl);
           
           await fs.unlink(req.file.path);
-          console.log('🗑️ Archivo temporal eliminado');
           
         } catch (uploadError: any) {
-          console.error('❌ Error al subir a Cloudinary:', uploadError);
           
           try {
             await fs.unlink(req.file.path);
@@ -73,6 +70,12 @@ export class PatientController {
 
       await patient.save();
 
+      //  INCREMENTAR patientCount DEL VETERINARIO
+      await Veterinarian.findByIdAndUpdate(
+        req.user._id,
+        { $inc: { patientCount: 1 } }
+      );
+
       res.status(201).json({
         msg: 'Paciente creado correctamente',
         patient: patient.toObject({ virtuals: true })
@@ -83,7 +86,7 @@ export class PatientController {
     }
   };
 
-  // ✅ 👇 ACTUALIZADO: Ahora populate el owner
+  // ACTUALIZADO: Ahora populate el owner
   static getAllPatient = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {
@@ -93,7 +96,7 @@ export class PatientController {
       const patients = await Patient.find({
         mainVet: req.user._id
       })
-      .populate("owner", "name contact") // 👈 ¡Esto es lo clave!
+      .populate("owner", "name contact") 
       .sort({ createdAt: -1 });
 
       res.json(patients);
@@ -104,11 +107,10 @@ export class PatientController {
   };
 
   /* ---------- OBTENER UNO ---------- */
- 
   static getPatientById = async (req: Request, res: Response) => {
     try {
       const patient = await Patient.findById(req.params.id)
-        .populate("owner", "name contact"); // 👈 ¡Esto es lo clave!
+        .populate("owner", "name contact"); 
 
       if (!patient) {
         res.status(404).json({ msg: "Paciente no encontrado" });
@@ -127,30 +129,36 @@ export class PatientController {
 
   /* ---------- ELIMINAR ---------- */
   static deletePatient = async (req: Request, res: Response) => {
-  try {
-    const patient = await Patient.findById(req.params.id);
-    if (!patient) {
-      return res.status(404).json({ msg: "Paciente no encontrado" });
-    }
-
-    if (patient.photo) {
-      const publicId = patient.photo.split('/').pop()?.split('.')[0];
-      if (publicId) {
-        await cloudinary.uploader.destroy(`pets/${publicId}`);
+    try {
+      const patient = await Patient.findById(req.params.id);
+      if (!patient) {
+        return res.status(404).json({ msg: "Paciente no encontrado" });
       }
-    }
 
-    await Patient.findByIdAndDelete(req.params.id);
-    res.json({ msg: "Paciente eliminado correctamente" });
-    
-  } catch (error: any) {
-    console.error(error);
-    res.status(500).json({ msg: error.message || "Error al eliminar paciente" });
-  }
-};
+      // DECREMENTAR patientCount DEL VETERINARIO ANTES DE ELIMINAR
+      await Veterinarian.findByIdAndUpdate(
+        patient.mainVet, // usa el veterinario asociado al paciente
+        { $inc: { patientCount: -1 } },
+        { new: false } // no necesitas el documento actualizado
+      );
+
+      if (patient.photo) {
+        const publicId = patient.photo.split('/').pop()?.split('.')[0];
+        if (publicId) {
+          await cloudinary.uploader.destroy(`pets/${publicId}`);
+        }
+      }
+
+      await Patient.findByIdAndDelete(req.params.id);
+      res.json({ msg: "Paciente eliminado correctamente" });
+      
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({ msg: error.message || "Error al eliminar paciente" });
+    }
+  };
 
   /* ---------- BUSCAR POR DUEÑO ---------- */
-  
   static getPatientsByOwner = async (req: Request, res: Response) => {
     try {
       const { ownerId } = req.params;
@@ -160,7 +168,7 @@ export class PatientController {
       }
 
       const patients = await Patient.find({ owner: ownerId })
-        .populate("owner", "name contact") // 👈 ¡Consistencia!
+        .populate("owner", "name contact") 
         .sort({ createdAt: -1 });
       res.json(patients);
     } catch (error: any) {
@@ -168,8 +176,7 @@ export class PatientController {
     }
   };
 
-  /* ✅ ACTUALIZAR PACIENTE */
-  // ✅ 👇 ACTUALIZADO: Agregar populate en la respuesta
+  /*  ACTUALIZAR PACIENTE */
   static updatePatient = async (req: Request, res: Response) => {
     const { id } = req.params;
     const patientData = req.body;
@@ -189,14 +196,12 @@ export class PatientController {
       }
 
       if (req.file) {
-        console.log('📄 Subiendo nueva foto para actualización:', req.file.path);
         
         if (patientToUpdate.photo) {
           const publicId = patientToUpdate.photo.split('/').pop()?.split('.')[0];
           if (publicId) {
             try {
               await cloudinary.uploader.destroy(`pets/${publicId}`);
-              console.log('🗑️ Foto anterior eliminada de Cloudinary');
             } catch (cloudinaryError) {
               console.error('Error eliminando foto anterior:', cloudinaryError);
             }

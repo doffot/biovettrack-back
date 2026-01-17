@@ -1,7 +1,5 @@
-// src/models/Veterinarian.ts
 import mongoose, { Schema, Document } from 'mongoose';
 
-// Enum con todos los estados de Venezuela
 const estadosVenezuela = [
   "Amazonas",
   "Anzoátegui",
@@ -30,9 +28,10 @@ const estadosVenezuela = [
 ] as const;
 
 export type EstadoVenezuela = typeof estadosVenezuela[number];
+export type PlanType = 'trial' | 'basic' | 'premium';
 
 export interface IVeterinarian extends Document {
-  _id: mongoose.Types.ObjectId; // 👈 Añade esto explícitamente
+  _id: mongoose.Types.ObjectId;
   name: string;
   lastName: string;
   email: string;
@@ -45,6 +44,12 @@ export interface IVeterinarian extends Document {
   msds?: string;
   somevepa?: string;
   confirmed: boolean;
+  isLegacyUser: boolean;
+  planType: PlanType;
+  trialStartedAt?: Date;
+  trialEndedAt?: Date;
+  isActive: boolean;
+  patientCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -81,7 +86,7 @@ const VeterinarianSchema = new Schema(
       type: String,
       required: [true, 'El número de WhatsApp es obligatorio'],
       trim: true,
-      match: [/^\+?[1-9]\d{6,14}$/, 'Debe ser un número internacional válido (ej: +573001234567)'],
+      match: [/^\+?[1-9]\d{6,14}$/, 'Debe ser un número internacional válido (ej: +584121234567)'],
       maxlength: [20, 'El número de WhatsApp no puede tener más de 20 caracteres']
     },
     ci: {
@@ -124,9 +129,35 @@ const VeterinarianSchema = new Schema(
       maxlength: [100, 'El SOMEVEPA no puede tener más de 100 caracteres'],
       default: null
     },
-    confirmed: { // ✅ Campo de confirmación
+    confirmed: {
       type: Boolean,
       default: false
+    },
+    isLegacyUser: {
+      type: Boolean,
+      default: false
+    },
+    planType: {
+      type: String,
+      enum: ['trial', 'basic', 'premium'],
+      default: 'trial'
+    },
+    trialStartedAt: {
+      type: Date,
+      default: null
+    },
+    trialEndedAt: {
+      type: Date,
+      default: null
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    patientCount: {
+      type: Number,
+      default: 0,
+      min: 0
     }
   },
   {
@@ -134,7 +165,6 @@ const VeterinarianSchema = new Schema(
   }
 );
 
-// Índices únicos
 VeterinarianSchema.index({ ci: 1 }, { unique: true });
 VeterinarianSchema.index({ cmv: 1 }, { unique: true });
 VeterinarianSchema.index({ email: 1 }, { unique: true });
