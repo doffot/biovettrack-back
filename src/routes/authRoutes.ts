@@ -3,6 +3,7 @@ import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
 import { AuthController } from "../controllers/AuthController";
 import { authenticate } from "../middleware/auth";
+import uploadSignature from "../middleware/uploadSignature"; // 👈 Nuevo import
 
 const router = Router();
 
@@ -208,7 +209,7 @@ router.post(
 router.get("/user", authenticate, AuthController.user);
 
 // =====================================================
-// ✅ NUEVAS RUTAS PARA PERFIL
+// ✅ RUTAS PARA PERFIL
 // =====================================================
 
 /**
@@ -315,6 +316,31 @@ router.post(
   ],
   handleInputErrors,
   AuthController.changePassword
+);
+
+// =====================================================
+// ✅ NUEVAS RUTAS PARA FIRMA
+// =====================================================
+
+/**
+ * Subir firma del veterinario
+ * POST /api/auth/profile/signature
+ */
+router.post(
+  "/profile/signature",
+  authenticate,
+  uploadSignature.single('signature'),
+  AuthController.uploadSignature
+);
+
+/**
+ * Eliminar firma del veterinario
+ * DELETE /api/auth/profile/signature
+ */
+router.delete(
+  "/profile/signature",
+  authenticate,
+  AuthController.deleteSignature
 );
 
 export default router;

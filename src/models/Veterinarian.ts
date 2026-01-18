@@ -1,3 +1,4 @@
+// models/Veterinarian.ts
 import mongoose, { Schema, Document } from 'mongoose';
 
 const estadosVenezuela = [
@@ -43,6 +44,7 @@ export interface IVeterinarian extends Document {
   runsai?: string;
   msds?: string;
   somevepa?: string;
+  signature?: string; // 👈 Nueva propiedad
   confirmed: boolean;
   isLegacyUser: boolean;
   planType: PlanType;
@@ -127,6 +129,11 @@ const VeterinarianSchema = new Schema(
       type: String,
       trim: true,
       maxlength: [100, 'El SOMEVEPA no puede tener más de 100 caracteres'],
+      default: null
+    },
+    signature: { // 👈 Nuevo campo
+      type: String,
+      trim: true,
       default: null
     },
     confirmed: {

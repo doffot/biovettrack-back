@@ -6,6 +6,8 @@ import { AuthEmail } from "../emails/AuthEmail";
 import { generateJWT } from "../utils/jwt";
 import Staff from "../models/Staff";
 import Token from "../models/token";
+import { uploadToCloudinary, deleteFromCloudinary } from "../config/cloudinary";
+import { deleteTempSignature } from "../middleware/uploadSignature";
 
 export class AuthController {
   static createAccount = async (req: Request, res: Response) => {
@@ -312,6 +314,70 @@ export class AuthController {
     } catch (error) {
       console.error("Error en changePassword:", error);
       res.status(500).json({ error: "Error al cambiar contraseña" });
+    }
+  };
+
+  static uploadSignature = async (req: Request, res: Response) => {
+    try {
+      const veterinarian = await Veterinarian.findById(req.user._id);
+      
+      if (!veterinarian) {
+        return res.status(404).json({ error: "Veterinario no encontrado" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No se proporcionó archivo de firma" });
+      }
+
+      // Si ya tiene firma anterior, eliminarla de Cloudinary
+      if (veterinarian.signature) {
+        await deleteFromCloudinary(veterinarian.signature);
+      }
+
+      // Subir nueva firma a Cloudinary
+      const cloudinaryUrl = await uploadToCloudinary(req.file.path, 'signatures');
+      
+      // Eliminar archivo temporal
+      await deleteTempSignature(req.file.path);
+
+      // Actualizar en BD
+      veterinarian.signature = cloudinaryUrl;
+      await veterinarian.save();
+
+      res.json({ 
+        message: "Firma actualizada correctamente",
+        signature: veterinarian.signature 
+      });
+    } catch (error) {
+      console.error("Error al subir firma:", error);
+      
+      // Limpiar archivo temporal en caso de error
+      if (req.file) {
+        await deleteTempSignature(req.file.path);
+      }
+      
+      res.status(500).json({ error: "Error al subir la firma" });
+    }
+  };
+
+  static deleteSignature = async (req: Request, res: Response) => {
+    try {
+      const veterinarian = await Veterinarian.findById(req.user._id);
+      
+      if (!veterinarian) {
+        return res.status(404).json({ error: "Veterinario no encontrado" });
+      }
+
+      if (veterinarian.signature) {
+        await deleteFromCloudinary(veterinarian.signature);
+        veterinarian.signature = null;
+        await veterinarian.save();
+      }
+
+      res.json({ message: "Firma eliminada correctamente" });
+    } catch (error) {
+      console.error("Error al eliminar firma:", error);
+      res.status(500).json({ error: "Error al eliminar la firma" });
     }
   };
 }
