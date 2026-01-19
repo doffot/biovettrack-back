@@ -23,6 +23,7 @@ import productRoutes from './routes/productRoutes';
 import inventoryRoutes from './routes/inventoryRoutes';
 import purchaseRoutes from './routes/purchaseRoutes';
 import saleRoutes from './routes/saleRoutes';
+import treatmentRoutes from './routes/treatmentRoutes';
 
 connectDB();
 
@@ -48,6 +49,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/sales", saleRoutes);
+app.use("/api/treatments", treatmentRoutes);
+
 
 app.use('/api/lab-exams', labExamRoutes);
 app.use('/api/patients/:patientId/lab-exams', labExamRoutes);
