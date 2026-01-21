@@ -17,20 +17,18 @@ export interface IInventoryMovement extends Document {
   type: MovementType;
   reason: MovementReason;
   
-  // Cantidades (positivas siempre, el tipo indica dirección)
   quantityUnits: number;
   quantityDoses: number;
   
-  // Stock resultante después del movimiento
   stockAfterUnits: number;
   stockAfterDoses: number;
   
-  // Referencia opcional al documento que originó el movimiento
-  referenceType?: "Deworming" | "Vaccination" | "Consultation" | "Sale";
+  // 👇 ACTUALIZADO: Agregar VeterinaryService y Treatment
+  referenceType?: "Deworming" | "Vaccination" | "Consultation" | "Sale" | "Treatment" | "VeterinaryService";
   referenceId?: Types.ObjectId;
   
   notes?: string;
-  createdBy?: Types.ObjectId;  // Usuario que hizo el movimiento
+  createdBy?: Types.ObjectId;
   createdAt: Date;
 }
 
@@ -80,7 +78,8 @@ const InventoryMovementSchema = new Schema(
     },
     referenceType: {
       type: String,
-      enum: ["Deworming", "Vaccination", "Consultation", "Sale"],
+      
+      enum: ["Deworming", "Vaccination", "Consultation", "Sale", "Treatment", "VeterinaryService"],
     },
     referenceId: {
       type: Schema.Types.ObjectId,

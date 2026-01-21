@@ -12,8 +12,8 @@ export interface ILabExam extends Document {
   weight?: number;
 
   cost: number;
+  discount: number;
 
-  // Datos del examen
   treatingVet?: string;
   date: Date;
   hematocrit: number;
@@ -84,6 +84,11 @@ const LabExamSchema: Schema = new Schema({
     type: Number,
     required: [true, "El costo del examen es obligatorio"],
     min: [0, "El costo no puede ser negativo"]
+  },
+  discount: {
+    type: Number,
+    default: 0,
+    min: [0, "El descuento no puede ser negativo"]
   },
 
   treatingVet: { type: String, trim: true },

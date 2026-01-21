@@ -23,8 +23,8 @@ export interface IPatient extends Document {
   species: Species;
   breed?: string;
   weight?: number;
-  color?: string; // ✅ Nuevo campo
-  identification?: string; // ✅ Nuevo campo (señas/marcas)
+  color?: string; 
+  identification?: string; 
   owner: mongoose.Types.ObjectId | IOwner;
   photo?: string;
   mainVet: mongoose.Types.ObjectId | IVeterinarian;
@@ -72,12 +72,12 @@ const PatientSchema = new Schema(
       type: Number,
       min: [0, 'El peso no puede ser negativo']
     },
-    color: { // ✅ Nuevo campo
+    color: { 
       type: String,
       trim: true,
       default: null
     },
-    identification: { // ✅ Nuevo campo
+    identification: { 
       type: String,
       trim: true,
       default: null

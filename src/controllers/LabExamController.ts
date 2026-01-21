@@ -16,7 +16,6 @@ export class LabExamController {
         return res.status(401).json({ msg: "Usuario no autenticado" });
       }
 
-      // Validar conteo diferencial
       if (
         data.differentialCount &&
         !validateDifferentialSum(data.differentialCount)
@@ -26,14 +25,13 @@ export class LabExamController {
         });
       }
 
-      // Crear examen
       const labExam = new LabExam({
         ...data,
         vetId: req.user._id,
       });
       await labExam.save();
 
-      // BUSCAR Y COMPLETAR CITA AUTOMÁTICAMENTE
+      // Completar cita automáticamente
       if (labExam.patientId) {
         try {
           const openAppointment = await Appointment.findOne({
@@ -45,32 +43,31 @@ export class LabExamController {
           if (openAppointment) {
             openAppointment.status = "Completada";
             await openAppointment.save();
-            console.log(
-              ` Cita ${openAppointment._id} marcada como Completada`
-            );
           }
         } catch (appointmentError) {
-          console.error(
-            " Error al buscar/actualizar cita:",
-            appointmentError
-          );
+          console.error("Error al actualizar cita:", appointmentError);
         }
       }
 
-      // CREAR FACTURA AUTOMÁTICAMENTE
+      // Crear factura automáticamente
       try {
         const isReferredPatient = !labExam.patientId;
+        
+        // Calcular total con descuento
+        const totalCost = labExam.cost - (labExam.discount || 0);
+        const finalTotal = totalCost > 0 ? totalCost : 0;
+        
+        // Si el total es 0 (descuento total), marcar como pagado
+        const isFreeDueToDiscount = finalTotal === 0;
 
         let invoiceData: any;
 
         if (isReferredPatient) {
-          //  Cliente referido - Procesar pago 
           const exchangeRate = data.exchangeRate || 1;
           const paymentAmount = data.paymentAmount || 0;
           const paymentCurrency = data.paymentCurrency || "USD";
           const creditUsed = data.creditAmountUsed || 0;
 
-          //  Calcular montos separados para USD y Bs
           let amountPaidUSD = 0;
           let amountPaidBs = 0;
 
@@ -80,7 +77,6 @@ export class LabExamController {
             amountPaidUSD = paymentAmount;
           }
 
-          // Sumar crédito (siempre es en USD)
           amountPaidUSD += creditUsed;
 
           invoiceData = {
@@ -89,16 +85,16 @@ export class LabExamController {
                 type: "labExam",
                 resourceId: labExam._id,
                 description: `Hemograma - ${labExam.patientName}`,
-                cost: labExam.cost,
+                cost: finalTotal,
                 quantity: 1,
               },
             ],
             currency: "USD",
             exchangeRate: exchangeRate,
-            total: labExam.cost,
-            amountPaidUSD: parseFloat(amountPaidUSD.toFixed(2)),
-            amountPaidBs: parseFloat(amountPaidBs.toFixed(2)),
-            // amountPaid y paymentStatus se calculan en el middleware
+            total: finalTotal,
+            amountPaidUSD: isFreeDueToDiscount ? 0 : parseFloat(amountPaidUSD.toFixed(2)),
+            amountPaidBs: isFreeDueToDiscount ? 0 : parseFloat(amountPaidBs.toFixed(2)),
+            paymentStatus: isFreeDueToDiscount ? "Pagado" : undefined,
             date: new Date(),
             veterinarianId: req.user._id,
             ownerName: labExam.ownerName,
@@ -106,25 +102,22 @@ export class LabExamController {
             paymentMethod: data.paymentMethodId,
             paymentReference: data.paymentReference,
           };
-
-         
         } else {
-          // ✅ Cliente con paciente registrado - factura pendiente
           invoiceData = {
             items: [
               {
                 type: "labExam",
                 resourceId: labExam._id,
                 description: `Hemograma - ${labExam.patientName}`,
-                cost: labExam.cost,
+                cost: finalTotal,
                 quantity: 1,
               },
             ],
             currency: "USD",
-            total: labExam.cost,
+            total: finalTotal,
             amountPaidUSD: 0,
             amountPaidBs: 0,
-            // amountPaid y paymentStatus se calculan en el middleware
+            paymentStatus: isFreeDueToDiscount ? "Pagado" : "Pendiente",
             date: new Date(),
             veterinarianId: req.user._id,
           };
@@ -138,13 +131,8 @@ export class LabExamController {
 
         const invoice = new Invoice(invoiceData);
         await invoice.save();
-
-       
       } catch (invoiceError) {
-        console.error(
-          " Error al crear factura (examen guardado):",
-          invoiceError
-        );
+        console.error("Error al crear factura:", invoiceError);
       }
 
       res.status(201).json(labExam);
@@ -154,7 +142,7 @@ export class LabExamController {
     }
   };
 
-  /* ---------- LISTAR SOLO LOS EXÁMENES DEL VETERINARIO ACTUAL ---------- */
+  /* ---------- LISTAR ---------- */
   static getAllLabExams = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {
@@ -172,7 +160,7 @@ export class LabExamController {
     }
   };
 
-  /* ---------- OBTENER UNO (solo si pertenece al veterinario) ---------- */
+  /* ---------- OBTENER UNO ---------- */
   static getLabExamById = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {
@@ -187,9 +175,7 @@ export class LabExamController {
       });
 
       if (!exam) {
-        return res
-          .status(404)
-          .json({ msg: "Examen no encontrado o no autorizado" });
+        return res.status(404).json({ msg: "Examen no encontrado o no autorizado" });
       }
 
       res.json(exam);
@@ -224,9 +210,7 @@ export class LabExamController {
       });
 
       if (!existingExam) {
-        return res
-          .status(404)
-          .json({ msg: "Examen no encontrado o no autorizado" });
+        return res.status(404).json({ msg: "Examen no encontrado o no autorizado" });
       }
 
       const updated = await LabExam.findByIdAndUpdate(id, data, {
@@ -259,9 +243,7 @@ export class LabExamController {
       });
 
       if (!exam) {
-        return res
-          .status(404)
-          .json({ msg: "Examen no encontrado o no autorizado" });
+        return res.status(404).json({ msg: "Examen no encontrado o no autorizado" });
       }
 
       res.json({ msg: "Examen eliminado correctamente" });
@@ -271,7 +253,7 @@ export class LabExamController {
     }
   };
 
-  /* ---------- OBTENER EXÁMENES POR PACIENTE ---------- */
+  /* ---------- OBTENER POR PACIENTE ---------- */
   static getLabExamsByPatient = async (req: Request, res: Response) => {
     try {
       if (!req.user || !req.user._id) {

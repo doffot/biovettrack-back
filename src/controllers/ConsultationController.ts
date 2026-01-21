@@ -7,7 +7,7 @@ import Appointment from "../models/Appointment";
 
 export class ConsultationController {
   
-  // ✅ NUEVO: Guardar o actualizar borrador
+  //  Guardar o actualizar borrador
   static saveDraft = async (req: Request, res: Response) => {
     const { patientId } = req.params;
     const draftData = req.body;
@@ -64,7 +64,7 @@ export class ConsultationController {
     }
   };
 
-  // ✅ NUEVO: Obtener borrador activo
+  //  Obtener borrador activo
   static getDraft = async (req: Request, res: Response) => {
     const { patientId } = req.params;
 
@@ -90,110 +90,108 @@ export class ConsultationController {
     }
   };
 
-  // ✅ MODIFICADO: createConsultation ahora finaliza borradores
-  static createConsultation = async (req: Request, res: Response) => {
-    const { patientId } = req.params;
-    const consultationData = req.body;
+  //  createConsultation ahora finaliza borradores
+ static createConsultation = async (req: Request, res: Response) => {
+  const { patientId } = req.params;
+  const consultationData = req.body;
 
-    try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
-      }
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: 'Usuario no autenticado' });
+    }
 
-      if (!patientId) {
-        return res.status(400).json({ msg: 'ID de paciente es obligatorio' });
-      }
+    if (!patientId) {
+      return res.status(400).json({ msg: 'ID de paciente es obligatorio' });
+    }
 
-      const patient = await Patient.findOne({
-        _id: patientId,
-        mainVet: req.user._id
-      });
-      
-      if (!patient) {
-        return res.status(404).json({ msg: 'Paciente no encontrado o no autorizado' });
-      }
+    const patient = await Patient.findOne({
+      _id: patientId,
+      mainVet: req.user._id
+    });
+    
+    if (!patient) {
+      return res.status(404).json({ msg: 'Paciente no encontrado o no autorizado' });
+    }
 
-      // Buscar si hay un borrador existente
-      const existingDraft = await Consultation.findOne({
+    const existingDraft = await Consultation.findOne({
+      patientId,
+      veterinarianId: req.user._id,
+      isDraft: true,
+    }).sort({ updatedAt: -1 });
+
+    let consultation;
+
+    if (existingDraft) {
+      Object.assign(existingDraft, consultationData);
+      existingDraft.isDraft = false;
+      consultation = existingDraft;
+    } else {
+      consultation = new Consultation({
+        ...consultationData,
         patientId,
         veterinarianId: req.user._id,
-        isDraft: true,
-      }).sort({ updatedAt: -1 });
-
-      let consultation;
-
-      if (existingDraft) {
-        // Finalizar el borrador existente
-        Object.assign(existingDraft, consultationData);
-        existingDraft.isDraft = false;
-        consultation = existingDraft;
-      } else {
-        // Crear nueva consulta
-        consultation = new Consultation({
-          ...consultationData,
-          patientId,
-          veterinarianId: req.user._id,
-          isDraft: false,
-        });
-      }
-
-      await consultation.save(); // Ahora SÍ validará todos los campos
-
-      // BUSCAR Y COMPLETAR CITA AUTOMÁTICAMENTE
-      try {
-        const openAppointment = await Appointment.findOne({
-          patient: patientId,
-          type: "Consulta",
-          status: "Programada",
-        }).sort({ date: 1 });
-
-        if (openAppointment) {
-          openAppointment.status = "Completada";
-          await openAppointment.save();
-          console.log(`✅ Cita ${openAppointment._id} marcada como Completada`);
-        }
-      } catch (appointmentError) {
-        console.error("⚠️ Error al buscar/actualizar cita:", appointmentError);
-      }
-
-      // CREAR FACTURA AUTOMÁTICA
-      try {
-        const invoice = new Invoice({
-          ownerId: patient.owner,
-          patientId: patientId,
-          items: [{
-            type: "consulta",
-            resourceId: consultation._id,
-            description: `Consulta - ${patient.name}`,
-            cost: consultation.cost,
-            quantity: 1,
-          }],
-          currency: "USD",
-          total: consultation.cost,
-          amountPaid: 0,
-          paymentStatus: "Pendiente",
-          date: new Date(),
-          veterinarianId: req.user._id,
-        });
-        await invoice.save();
-        console.log("✅ Factura creada:", invoice._id);
-      } catch (invoiceError) {
-        console.error("⚠️ Error al crear factura para consulta:", invoiceError);
-      }
-
-      res.status(201).json({
-        msg: 'Consulta registrada correctamente',
-        consultation,
+        isDraft: false,
       });
-
-    } catch (error: any) {
-      if (error.name === 'ValidationError') {
-        return res.status(400).json({ msg: error.message });
-      }
-      console.error('Error en createConsultation:', error);
-      res.status(500).json({ msg: 'Error al registrar la consulta' });
     }
-  };
+
+    await consultation.save();
+
+    try {
+      const openAppointment = await Appointment.findOne({
+        patient: patientId,
+        type: "Consulta",
+        status: "Programada",
+      }).sort({ date: 1 });
+
+      if (openAppointment) {
+        openAppointment.status = "Completada";
+        await openAppointment.save();
+      }
+    } catch (appointmentError) {
+      console.error("Error al actualizar cita:", appointmentError);
+    }
+
+    try {
+      const totalCost = consultation.cost - (consultation.discount || 0);
+      const finalTotal = totalCost > 0 ? totalCost : 0;
+      const isFreeDueToDiscount = finalTotal === 0;
+
+      const invoice = new Invoice({
+        ownerId: patient.owner,
+        patientId: patientId,
+        items: [{
+          type: "consulta",
+          resourceId: consultation._id,
+          description: `Consulta - ${patient.name}`,
+          cost: finalTotal,
+          quantity: 1,
+        }],
+        currency: "USD",
+        total: finalTotal,
+        amountPaidUSD: 0,
+        amountPaidBs: 0,
+        paymentStatus: isFreeDueToDiscount ? "Pagado" : "Pendiente",
+        date: new Date(),
+        veterinarianId: req.user._id,
+      });
+      await invoice.save();
+    } catch (invoiceError) {
+      console.error("Error al crear factura:", invoiceError);
+    }
+
+    res.status(201).json({
+      msg: 'Consulta registrada correctamente',
+      consultation,
+    });
+
+  } catch (error: any) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ msg: error.message });
+    }
+    console.error('Error en createConsultation:', error);
+    res.status(500).json({ msg: 'Error al registrar la consulta' });
+  }
+};
 
   static getConsultationsByPatient = async (req: Request, res: Response) => {
     try {

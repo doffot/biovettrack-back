@@ -17,13 +17,14 @@ import medicalStudyRouter from './routes/medicalStudyRoutes';
 import vaccinationRouter from './routes/vaccinationRoutes';
 import dewormingRouter from './routes/dewormingRoutes';
 import consultationRouter from './routes/consultationRoutes';
-import recipeRouter from './routes/recipeRoutes'; // 👈 NUEVO
+import recipeRouter from './routes/recipeRoutes'; 
 import paymentRoutes from './routes/paymentRoutes';
 import productRoutes from './routes/productRoutes';
 import inventoryRoutes from './routes/inventoryRoutes';
 import purchaseRoutes from './routes/purchaseRoutes';
 import saleRoutes from './routes/saleRoutes';
 import treatmentRoutes from './routes/treatmentRoutes';
+import veterinaryServiceRoutes from './routes/veterinaryServiceRoutes'; 
 
 connectDB();
 
@@ -50,7 +51,7 @@ app.use("/api/inventory", inventoryRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/treatments", treatmentRoutes);
-
+app.use("/api/veterinary-services", veterinaryServiceRoutes); 
 
 app.use('/api/lab-exams', labExamRoutes);
 app.use('/api/patients/:patientId/lab-exams', labExamRoutes);
