@@ -97,54 +97,50 @@ export class AuthController {
     }
   };
 
-  static login = async (req: Request, res: Response) => {
-    try {
-      const { email, password } = req.body;
-      const veterinarian = await Veterinarian.findOne({ email });
-      if (!veterinarian) {
-        return res.status(404).json({ error: "Veterinario no existe" });
-      }
+ static login = async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    const veterinarian = await Veterinarian.findOne({ email });
 
-      if (!veterinarian.confirmed) {
-        const token = new Token();
-        token.veterinarian = veterinarian.id;
-        token.token = generateToken();
-        await token.save();
-
-        AuthEmail.sendConfirmationEmail({
-          email: veterinarian.email,
-          name: veterinarian.name,
-          token: token.token,
-        });
-
-        return res.status(403).json({ error: "Veterinario no confirmado, revisa tu email" });
-      }
-
-      const isPasswordCorrect = await checkPassword(password, veterinarian.password);
-      if (!isPasswordCorrect) {
-        return res.status(401).json({ error: "Contraseña incorrecta" });
-      }
-
-      // Verificar estado del plan
-      if (!veterinarian.isLegacyUser) {
-        const now = new Date();
-        if (veterinarian.planType === 'trial' && now > veterinarian.trialEndedAt) {
-          veterinarian.isActive = false;
-          await veterinarian.save();
-          return res.status(403).json({ error: "Tu período de prueba ha terminado. Actualiza tu plan para continuar." });
-        }
-      }
-
-      if (!veterinarian.isActive) {
-        return res.status(403).json({ error: "Cuenta inactiva. Contacta al soporte." });
-      }
-
-      const token = generateJWT({ id: veterinarian.id });
-      res.send(token);
-    } catch (error) {
-      res.status(500).json({ error: "Error al iniciar sesión" });
+    if (!veterinarian) {
+      return res.status(404).json({ error: "Veterinario no existe" });
     }
-  };
+
+    if (!veterinarian.confirmed) {
+      const token = new Token();
+      token.veterinarian = veterinarian.id;
+      token.token = generateToken();
+      await token.save();
+
+      AuthEmail.sendConfirmationEmail({
+        email: veterinarian.email,
+        name: veterinarian.name,
+        token: token.token,
+      });
+
+      return res.status(403).json({ error: "Veterinario no confirmado, revisa tu email" });
+    }
+
+    const isPasswordCorrect = await checkPassword(password, veterinarian.password);
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ error: "Contraseña incorrecta" });
+    }
+
+    // Actualizar estado del trial sin bloquear login
+    if (!veterinarian.isLegacyUser && veterinarian.planType === "trial") {
+      const now = new Date();
+      if (veterinarian.trialEndedAt && now > veterinarian.trialEndedAt) {
+        veterinarian.isActive = false;
+        await veterinarian.save();
+      }
+    }
+
+    const token = generateJWT({ id: veterinarian.id });
+    res.send(token);
+  } catch (error) {
+    res.status(500).json({ error: "Error al iniciar sesión" });
+  }
+};
 
   static requestNewToken = async (req: Request, res: Response) => {
     try {

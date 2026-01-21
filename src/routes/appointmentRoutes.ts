@@ -4,6 +4,7 @@ import { body, param } from 'express-validator';
 import { handleInputErrors } from '../middleware/validation';
 import { AppointmentController } from '../controllers/AppointmentController';
 import { authenticate } from '../middleware/auth';
+import { checkCanCreate } from '../middleware/checkCanCreate';
 
 const createAppointmentValidation = [
   param('patientId').isMongoId().withMessage('ID de paciente inválido'),
@@ -39,6 +40,7 @@ const patientAppointmentRouter = Router({ mergeParams: true });
 patientAppointmentRouter.post(
   '/',
   authenticate,
+  checkCanCreate,
   ...createAppointmentValidation,
   handleInputErrors,
   AppointmentController.createAppointment
@@ -66,14 +68,6 @@ globalAppointmentRouter.get(
   AppointmentController.getAppointmentsByDateForVeterinarian
 );
 
-// globalAppointmentRouter.get(
-//   '/:id/check-payments',
-//   authenticate,
-//   param('id').isMongoId().withMessage('ID de cita inválido'),
-//   handleInputErrors,
-//   AppointmentController.checkAppointmentPayments
-// );
-
 globalAppointmentRouter.get(
   '/:id',
   authenticate,
@@ -85,6 +79,7 @@ globalAppointmentRouter.get(
 globalAppointmentRouter.patch(
   '/:id/status',
   authenticate,
+  checkCanCreate,
   ...updateStatusValidation,
   handleInputErrors,
   AppointmentController.updateAppointmentStatus
@@ -93,6 +88,7 @@ globalAppointmentRouter.patch(
 globalAppointmentRouter.delete(
   '/:id',
   authenticate,
+  checkCanCreate,
   param('id').isMongoId().withMessage('ID de cita inválido'),
   handleInputErrors,
   AppointmentController.deleteAppointment
@@ -101,6 +97,7 @@ globalAppointmentRouter.delete(
 globalAppointmentRouter.patch(
   '/:id',
   authenticate,
+  checkCanCreate,
   body('type')
     .notEmpty().withMessage('El tipo de cita es obligatorio')
     .isIn(['Consulta', 'Peluquería', 'Laboratorio', 'Vacuna', 'Cirugía', 'Tratamiento'])

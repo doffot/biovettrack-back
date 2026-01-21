@@ -4,6 +4,7 @@ import { body, param, query } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
 import { authenticate } from "../middleware/auth";
 import { SaleController } from "../controllers/SaleController";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 
 const router = Router();
 
@@ -76,6 +77,7 @@ router.post(
 
 router.post(
   "/",
+  checkCanCreate,
   [
     // Cliente (opcional)
     body("ownerId")
@@ -160,6 +162,7 @@ router.post(
 
 router.patch(
   "/:id/cancel",
+  checkCanCreate,
   [
     param("id").isMongoId().withMessage("ID de venta inválido"),
     body("reason")

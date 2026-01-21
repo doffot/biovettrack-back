@@ -4,6 +4,7 @@ import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
 import { StaffController } from "../controllers/StaffController";
 import { authenticate } from "../middleware/auth";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 
 // Validaciones para CREAR staff
 const createStaffValidation = [
@@ -62,9 +63,7 @@ const updateStaffValidation = [
     .isBoolean().withMessage("El estado debe ser verdadero o falso"),
 ];
 
-// ================================
-// 🌐 Router GLOBAL (sin parámetros)
-// ================================
+
 const staffRouter = Router();
 
 // GET /api/staff → todos los miembros del staff
@@ -78,6 +77,7 @@ staffRouter.get(
 staffRouter.post(
   "/",
   authenticate,
+  checkCanCreate,
   ...createStaffValidation,
   handleInputErrors,
   StaffController.createStaff
@@ -96,6 +96,7 @@ staffRouter.get(
 staffRouter.put(
   "/:id",
   authenticate,
+  checkCanCreate,
   param("id").isMongoId().withMessage("ID de staff inválido"),
   ...updateStaffValidation,
   handleInputErrors,
@@ -106,6 +107,7 @@ staffRouter.put(
 staffRouter.delete(
   "/:id",
   authenticate,
+  checkCanCreate,
   param("id").isMongoId().withMessage("ID de staff inválido"),
   handleInputErrors,
   StaffController.deleteStaff

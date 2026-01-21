@@ -4,6 +4,7 @@ import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
 import { authenticate } from "../middleware/auth";
 import { RecipeController } from "../controllers/RecipeController";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 
 const router = Router();
 
@@ -19,6 +20,7 @@ router.get(
 /* POST /api/recipes/:patientId - Crear receta */
 router.post(
   "/:patientId",
+  checkCanCreate,
   [
     param("patientId")
       .isMongoId().withMessage("ID de paciente inválido"),
@@ -79,6 +81,7 @@ router.get(
 /* PUT /api/recipes/:id - Actualizar receta */
 router.put(
   "/:id",
+  checkCanCreate,
   [
     param("id")
       .isMongoId().withMessage("ID de receta inválido"),
@@ -125,6 +128,7 @@ router.put(
 /* DELETE /api/recipes/:id - Eliminar receta */
 router.delete(
   "/:id",
+  checkCanCreate,
   param("id")
     .isMongoId().withMessage("ID de receta inválido"),
   handleInputErrors,

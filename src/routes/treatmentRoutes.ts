@@ -4,6 +4,7 @@ import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
 import { authenticate } from "../middleware/auth";
 import { TreatmentController } from "../controllers/TreatmentController";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 
 const router = Router();
 
@@ -13,6 +14,7 @@ router.get("/", TreatmentController.getAllTreatments);
 
 router.post(
   "/:patientId",
+  checkCanCreate,
   [
     param("patientId").isMongoId().withMessage("ID de paciente inválido"),
     body("startDate").notEmpty().withMessage("La fecha de inicio es obligatoria").isISO8601().withMessage("Fecha inválida"),
@@ -40,6 +42,7 @@ router.get("/:id", param("id").isMongoId().withMessage("ID de tratamiento invál
 
 router.put(
   "/:id",
+  checkCanCreate,
   [
     param("id").isMongoId().withMessage("ID de tratamiento inválido"),
     body("startDate").optional().isISO8601().withMessage("Fecha inválida"),
@@ -61,6 +64,12 @@ router.put(
   TreatmentController.updateTreatment
 );
 
-router.delete("/:id", param("id").isMongoId().withMessage("ID de tratamiento inválido"), handleInputErrors, TreatmentController.deleteTreatment);
+router.delete(
+  "/:id",
+  checkCanCreate,
+  param("id").isMongoId().withMessage("ID de tratamiento inválido"),
+  handleInputErrors, 
+  TreatmentController.deleteTreatment
+);
 
 export default router;

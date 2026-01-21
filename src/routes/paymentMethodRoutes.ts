@@ -4,6 +4,7 @@ import { body, param } from 'express-validator';
 import { handleInputErrors } from '../middleware/validation';
 import { PaymentMethodController } from '../controllers/PaymentMethodController';
 import { authenticate } from '../middleware/auth';
+import { checkCanCreate } from '../middleware/checkCanCreate';
 
 const router = Router();
 
@@ -76,14 +77,12 @@ const optionalPaymentMethodValidation = [
     .isBoolean().withMessage('isActive debe ser verdadero o falso')
 ];
 
-// ✅ Obtener todos los métodos de pago del veterinario autenticado
 router.get(
   '/',
   authenticate,
   PaymentMethodController.getPaymentMethods
 );
 
-// ✅ Obtener método de pago por ID
 router.get(
   '/:id',
   authenticate,
@@ -92,29 +91,29 @@ router.get(
   PaymentMethodController.getPaymentMethodById
 );
 
-// ✅ Crear método de pago
 router.post(
   '/',
   authenticate,
+  checkCanCreate,
   ...paymentMethodValidation,
   handleInputErrors,
   PaymentMethodController.createPaymentMethod
 );
 
-// ✅ Actualizar método de pago
 router.put(
   '/:id',
   authenticate,
+  checkCanCreate,
   param('id').isMongoId().withMessage('ID de método de pago inválido'),
   ...optionalPaymentMethodValidation,
   handleInputErrors,
   PaymentMethodController.updatePaymentMethod
 );
 
-// ✅ Eliminar (desactivar) método de pago
 router.delete(
   '/:id',
   authenticate,
+  checkCanCreate,
   param('id').isMongoId().withMessage('ID de método de pago inválido'),
   handleInputErrors,
   PaymentMethodController.deletePaymentMethod

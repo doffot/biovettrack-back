@@ -5,6 +5,7 @@ import { handleInputErrors } from '../middleware/validation';
 import { PatientController } from '../controllers/PatientController';
 import upload from '../middleware/upload';
 import { authenticate } from '../middleware/auth';
+import { checkCanCreate } from '../middleware/checkCanCreate';
 
 const router = Router();
 
@@ -55,12 +56,12 @@ const optionalPatientValidation = [
     .optional()
     .isFloat({ min: 0 }).withMessage('El peso debe ser positivo'),
 
-  body('color') // ✅ Nuevo campo
+  body('color') 
     .optional()
     .isString().withMessage('El color debe ser texto')
     .trim(),
 
-  body('identification') // ✅ Nuevo campo
+  body('identification') 
     .optional()
     .isString().withMessage('La identificación debe ser texto')
     .trim(),
@@ -71,7 +72,7 @@ const optionalPatientValidation = [
 
   body('mainVet')
     .optional()
-    .isMongoId().withMessage('ID de veterinario no válido'), // ✅ Cambiado a isMongoId
+    .isMongoId().withMessage('ID de veterinario no válido'), 
 
   body('referringVet')
     .optional()
@@ -79,7 +80,7 @@ const optionalPatientValidation = [
     .trim(),
 ];
 
-// ✅ Obtener paciente por ID
+// Obtener paciente por ID
 router.get(
   '/:id',
   param('id').isMongoId().withMessage('ID inválido'),
@@ -87,9 +88,10 @@ router.get(
   PatientController.getPatientById
 );
 
-// ✅ Actualizar paciente
+// Actualizar paciente
 router.put(
   '/:id',
+  checkCanCreate,
   param('id').isMongoId().withMessage('ID inválido'),
   upload.single('photo'),
   ...optionalPatientValidation,
@@ -97,15 +99,16 @@ router.put(
   PatientController.updatePatient
 );
 
-// ✅ Eliminar paciente
+// Eliminar paciente
 router.delete(
   '/:id',
+  checkCanCreate,
   param('id').isMongoId().withMessage('ID inválido'),
   handleInputErrors,
   PatientController.deletePatient
 );
 
-// ✅ Listar pacientes por dueño
+// Obtener pacientes por dueño
 router.get(
   '/owner/:ownerId',
   param('ownerId').isMongoId().withMessage('ID de dueño inválido'),
@@ -113,7 +116,7 @@ router.get(
   PatientController.getPatientsByOwner
 );
 
-// ✅ Listar todos los pacientes
+// Listar todos los pacientes
 router.get('/', 
   authenticate,
   PatientController.getAllPatient);

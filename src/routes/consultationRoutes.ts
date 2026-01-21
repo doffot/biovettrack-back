@@ -3,13 +3,12 @@ import { Router } from "express";
 import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
 import { authenticate } from "../middleware/auth";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 import { ConsultationController } from "../controllers/ConsultationController";
 
 const router = Router();
 router.use(authenticate);
 
-/* ✅ NUEVAS RUTAS PARA BORRADORES (antes de las rutas con :id) */
-/* GET /api/consultations/draft/:patientId - Obtener borrador */
 router.get(
   "/draft/:patientId",
   param("patientId").isMongoId().withMessage("ID de paciente inválido"),
@@ -17,27 +16,24 @@ router.get(
   ConsultationController.getDraft
 );
 
-/* POST /api/consultations/draft/:patientId - Guardar borrador (sin validaciones estrictas) */
 router.post(
   "/draft/:patientId",
+  checkCanCreate,
   param("patientId").isMongoId().withMessage("ID de paciente inválido"),
   handleInputErrors,
   ConsultationController.saveDraft
 );
 
-/* GET /api/consultations - Todas las consultas del veterinario */
 router.get(
   "/",
   ConsultationController.getAllConsultations
 );
 
-/* POST /api/consultations/:patientId - Crear/Finalizar consulta */
 router.post(
   "/:patientId",
+  checkCanCreate,
   [
     param("patientId").isMongoId().withMessage("ID de paciente inválido"),
-    
-    //  ANAMNESIS
     body("reasonForVisit").notEmpty().withMessage("Motivo obligatorio").isString().trim().isLength({ max: 300 }),
     body("symptomOnset").notEmpty().withMessage("Fecha inicio obligatoria").isString().trim().isLength({ max: 100 }),
     body("symptomEvolution").isIn(['empeorado', 'mejorado', 'estable']).withMessage("Evolución inválida"),
@@ -65,8 +61,6 @@ router.post(
     body("lethargyOrWeakness").isBoolean().withMessage("Campo obligatorio"),
     body("currentTreatment").optional().isString().trim().isLength({ max: 300 }),
     body("medications").optional().isString().trim().isLength({ max: 300 }),
-    
-    //  VACUNAS
     body("parvovirusVaccine").optional().isString().trim().isLength({ max: 100 }),
     body("parvovirusVaccineDate").optional().isISO8601(),
     body("quintupleSextupleVaccine").optional().isString().trim().isLength({ max: 100 }),
@@ -79,23 +73,17 @@ router.post(
     body("rabiesVaccineCats").optional().isString().trim().isLength({ max: 100 }),
     body("rabiesVaccineDateCats").optional().isISO8601(),
     body("dewormingCats").optional().isString().trim().isLength({ max: 200 }),
-    
-    //  HISTORIAL
     body("previousIllnesses").optional().isString().trim().isLength({ max: 300 }),
     body("previousSurgeries").optional().isString().trim().isLength({ max: 300 }),
     body("adverseReactions").optional().isString().trim().isLength({ max: 300 }),
     body("lastHeatOrBirth").optional().isString().trim().isLength({ max: 100 }),
     body("mounts").optional().isString().trim().isLength({ max: 100 }),
-    
-    //  EXAMEN FÍSICO
     body("temperature").notEmpty().withMessage("Temperatura obligatoria").isFloat({ min: 35, max: 42 }),
     body("lymphNodes").optional().isString().trim().isLength({ max: 100 }),
     body("heartRate").notEmpty().withMessage("FC obligatoria").isInt({ min: 0, max: 300 }),
     body("respiratoryRate").notEmpty().withMessage("FR obligatoria").isInt({ min: 0, max: 100 }),
     body("capillaryRefillTime").optional().isString().trim().isLength({ max: 50 }),
     body("weight").notEmpty().withMessage("Peso obligatorio").isFloat({ min: 0 }),
-    
-    //  SISTEMAS
     body("integumentarySystem").optional().isString().trim().isLength({ max: 300 }),
     body("cardiovascularSystem").optional().isString().trim().isLength({ max: 300 }),
     body("ocularSystem").optional().isString().trim().isLength({ max: 300 }),
@@ -103,21 +91,17 @@ router.post(
     body("nervousSystem").optional().isString().trim().isLength({ max: 300 }),
     body("musculoskeletalSystem").optional().isString().trim().isLength({ max: 300 }),
     body("gastrointestinalSystem").optional().isString().trim().isLength({ max: 300 }),
-    
-    //  DIAGNÓSTICO Y TRATAMIENTO
     body("presumptiveDiagnosis").notEmpty().withMessage("Diagnóstico presuntivo obligatorio").isString().trim().isLength({ max: 300 }),
     body("definitiveDiagnosis").notEmpty().withMessage("Diagnóstico definitivo obligatorio").isString().trim().isLength({ max: 300 }),
     body("requestedTests").optional().isString().trim().isLength({ max: 300 }),
     body("treatmentPlan").notEmpty().withMessage("Plan de tratamiento obligatorio").isString().trim().isLength({ max: 500 }),
-    
-    //  COSTO
     body("cost").notEmpty().withMessage("Costo obligatorio").isFloat({ min: 0 }),
+    body("discount").optional().isFloat({ min: 0 }),
   ],
   handleInputErrors,
   ConsultationController.createConsultation
 );
 
-/* GET /api/consultations/patient/:patientId */
 router.get(
   "/patient/:patientId",
   param("patientId").isMongoId(),
@@ -125,7 +109,6 @@ router.get(
   ConsultationController.getConsultationsByPatient
 );
 
-/* GET /api/consultations/:id */
 router.get(
   "/:id",
   param("id").isMongoId(),
@@ -133,12 +116,11 @@ router.get(
   ConsultationController.getConsultationById
 );
 
-/* PUT /api/consultations/:id */
 router.put(
   "/:id",
+  checkCanCreate,
   [
     param("id").isMongoId(),
-    // Todos los campos como optional() para actualización parcial
     body("reasonForVisit").optional().isString().trim().isLength({ max: 300 }),
     body("symptomOnset").optional().isString().trim().isLength({ max: 100 }),
     body("symptomEvolution").optional().isIn(['empeorado', 'mejorado', 'estable']),
@@ -166,8 +148,6 @@ router.put(
     body("lethargyOrWeakness").optional().isBoolean(),
     body("currentTreatment").optional().isString().trim().isLength({ max: 300 }),
     body("medications").optional().isString().trim().isLength({ max: 300 }),
-    
-    // Vacunas
     body("parvovirusVaccine").optional().isString().trim().isLength({ max: 100 }),
     body("parvovirusVaccineDate").optional().isISO8601(),
     body("quintupleSextupleVaccine").optional().isString().trim().isLength({ max: 100 }),
@@ -180,23 +160,17 @@ router.put(
     body("rabiesVaccineCats").optional().isString().trim().isLength({ max: 100 }),
     body("rabiesVaccineDateCats").optional().isISO8601(),
     body("dewormingCats").optional().isString().trim().isLength({ max: 200 }),
-    
-    // Historial
     body("previousIllnesses").optional().isString().trim().isLength({ max: 300 }),
     body("previousSurgeries").optional().isString().trim().isLength({ max: 300 }),
     body("adverseReactions").optional().isString().trim().isLength({ max: 300 }),
     body("lastHeatOrBirth").optional().isString().trim().isLength({ max: 100 }),
     body("mounts").optional().isString().trim().isLength({ max: 100 }),
-    
-    // Examen físico
     body("temperature").optional().isFloat({ min: 35, max: 42 }),
     body("lymphNodes").optional().isString().trim().isLength({ max: 100 }),
     body("heartRate").optional().isInt({ min: 0, max: 300 }),
     body("respiratoryRate").optional().isInt({ min: 0, max: 100 }),
     body("capillaryRefillTime").optional().isString().trim().isLength({ max: 50 }),
     body("weight").optional().isFloat({ min: 0 }),
-    
-    // Sistemas
     body("integumentarySystem").optional().isString().trim().isLength({ max: 300 }),
     body("cardiovascularSystem").optional().isString().trim().isLength({ max: 300 }),
     body("ocularSystem").optional().isString().trim().isLength({ max: 300 }),
@@ -204,22 +178,20 @@ router.put(
     body("nervousSystem").optional().isString().trim().isLength({ max: 300 }),
     body("musculoskeletalSystem").optional().isString().trim().isLength({ max: 300 }),
     body("gastrointestinalSystem").optional().isString().trim().isLength({ max: 300 }),
-    
-    // Diagnóstico y tratamiento
     body("presumptiveDiagnosis").optional().isString().trim().isLength({ max: 300 }),
     body("definitiveDiagnosis").optional().isString().trim().isLength({ max: 300 }),
     body("requestedTests").optional().isString().trim().isLength({ max: 300 }),
     body("treatmentPlan").optional().isString().trim().isLength({ max: 500 }),
-    
     body("cost").optional().isFloat({ min: 0 }),
+    body("discount").optional().isFloat({ min: 0 }),
   ],
   handleInputErrors,
   ConsultationController.updateConsultation
 );
 
-/* DELETE /api/consultations/:id */
 router.delete(
   "/:id",
+  checkCanCreate,
   param("id").isMongoId(),
   handleInputErrors,
   ConsultationController.deleteConsultation

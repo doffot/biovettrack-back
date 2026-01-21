@@ -5,15 +5,16 @@ import { handleInputErrors } from "../middleware/validation";
 import { authenticate } from "../middleware/auth";
 import { MedicalStudyController } from "../controllers/MedicalStudyController";
 import uploadPDF from "../middleware/uploadPDF";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 
 const router = Router();
 
-// 👇 Aplicar middleware de autenticación a todas las rutas
 router.use(authenticate);
 
 /* POST /api/medical-studies/:patientId */
 router.post(
   "/:patientId",
+  checkCanCreate,
   uploadPDF.single("pdfFile"),
   [
     param("patientId").isMongoId().withMessage("ID de paciente inválido"),
@@ -60,6 +61,7 @@ router.get(
 /* DELETE /api/medical-studies/:id */
 router.delete(
   "/:id",
+  checkCanCreate,
   param("id").isMongoId().withMessage("ID de estudio inválido"),
   handleInputErrors,
   MedicalStudyController.deleteMedicalStudy

@@ -4,6 +4,7 @@ import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
 import { authenticate } from "../middleware/auth";
 import { VeterinaryServiceController } from "../controllers/VeterinaryServiceController";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.get(
 /* POST /api/veterinary-services/:patientId */
 router.post(
   "/:patientId",
+  checkCanCreate,
   [
     param("patientId").isMongoId().withMessage("ID de paciente inválido"),
     
@@ -79,6 +81,7 @@ router.get(
 /* DELETE /api/veterinary-services/:id */
 router.delete(
   "/:id",
+  checkCanCreate,
   param("id").isMongoId().withMessage("ID de servicio inválido"),
   handleInputErrors,
   VeterinaryServiceController.deleteService

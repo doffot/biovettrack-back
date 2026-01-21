@@ -4,6 +4,7 @@ import { body, param } from 'express-validator';
 import { handleInputErrors } from '../middleware/validation';
 import { GroomingServiceController } from '../controllers/GroomingServiceController';
 import { authenticate } from '../middleware/auth';
+import { checkCanCreate } from '../middleware/checkCanCreate';
 
 const createGroomingValidation = [
   body('service')
@@ -72,6 +73,7 @@ globalGroomingRouter.get(
 globalGroomingRouter.put(
   '/:id',
   authenticate,
+  checkCanCreate,
   param('id').isMongoId().withMessage('ID de servicio inválido'),
   ...updateGroomingValidation,
   handleInputErrors,
@@ -81,6 +83,7 @@ globalGroomingRouter.put(
 globalGroomingRouter.delete(
   '/:id',
   authenticate,
+  checkCanCreate,
   param('id').isMongoId().withMessage('ID de servicio inválido'),
   handleInputErrors,
   GroomingServiceController.deleteGroomingService
@@ -91,6 +94,7 @@ const patientGroomingRouter = Router({ mergeParams: true });
 patientGroomingRouter.post(
   '/',
   authenticate,
+  checkCanCreate,
   param('patientId').isMongoId().withMessage('ID de paciente inválido'),
   ...createGroomingValidation,
   handleInputErrors,

@@ -4,6 +4,7 @@ import { authenticate } from "../middleware/auth";
 import { PurchaseController } from "../controllers/PurchaseController";
 import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 
 const router = Router();
 router.use(authenticate);
@@ -11,6 +12,7 @@ router.use(authenticate);
 // Crear compra
 router.post(
   "/",
+  checkCanCreate,
   [
     body("items").isArray({ min: 1 }).withMessage("Debe incluir al menos un producto"),
     body("items.*.productId").isMongoId().withMessage("ID de producto inválido"),

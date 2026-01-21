@@ -3,6 +3,7 @@ import { Router } from "express";
 import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
 import { authenticate } from "../middleware/auth";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 import { DewormingController } from "../controllers/DewormingController";
 
 const router = Router();
@@ -11,9 +12,9 @@ router.use(authenticate);
 
 router.get("/", DewormingController.getAllDewormings);
 
-/* POST /api/dewormings/:patientId */
 router.post(
   "/:patientId",
+  checkCanCreate,
   [
     param("patientId").isMongoId().withMessage("ID de paciente inválido"),
     body("applicationDate")
@@ -22,16 +23,14 @@ router.post(
     body("dewormingType")
       .notEmpty().withMessage("El tipo de desparasitación es obligatorio")
       .isIn(["Interna", "Externa", "Ambas"]).withMessage("Tipo inválido: debe ser Interna, Externa o Ambas"),
-    // 👇 productName es opcional si se envía productId
     body("productName")
       .optional()
       .isString().withMessage("Debe ser texto")
       .trim().isLength({ max: 100 }).withMessage("Máximo 100 caracteres"),
     body("dose")
-      .optional() // ← opcional si se usa producto, pero puedes dejarlo obligatorio si siempre necesitas dosis
+      .optional()
       .isString().withMessage("Debe ser texto")
       .trim().isLength({ max: 50 }).withMessage("Máximo 50 caracteres"),
-    // 👇 cost es opcional si se envía productId
     body("cost")
       .optional()
       .isFloat({ min: 0 }).withMessage("El costo debe ser un número positivo"),
@@ -46,7 +45,6 @@ router.post(
   DewormingController.createDeworming
 );
 
-/* GET /api/dewormings/patient/:patientId */
 router.get(
   "/patient/:patientId",
   param("patientId").isMongoId().withMessage("ID de paciente inválido"),
@@ -54,7 +52,6 @@ router.get(
   DewormingController.getDewormingsByPatient
 );
 
-/* GET /api/dewormings/:id */
 router.get(
   "/:id",
   param("id").isMongoId().withMessage("ID de desparasitación inválido"),
@@ -62,9 +59,9 @@ router.get(
   DewormingController.getDewormingById
 );
 
-/* PUT /api/dewormings/:id */
 router.put(
   "/:id",
+  checkCanCreate,
   [
     param("id").isMongoId().withMessage("ID de desparasitación inválido"),
     body("applicationDate")
@@ -95,9 +92,9 @@ router.put(
   DewormingController.updateDeworming
 );
 
-/* DELETE /api/dewormings/:id */
 router.delete(
   "/:id",
+  checkCanCreate,
   param("id").isMongoId().withMessage("ID de desparasitación inválido"),
   handleInputErrors,
   DewormingController.deleteDeworming

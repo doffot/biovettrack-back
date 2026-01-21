@@ -4,6 +4,7 @@ import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
 import { authenticate } from "../middleware/auth";
 import { VaccinationController } from "../controllers/VaccinationController";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.get("/", VaccinationController.getAllVaccinations);
 /* POST /api/vaccinations/:patientId */
 router.post(
   "/:patientId",
+  checkCanCreate,
   [
     param("patientId").isMongoId().withMessage("ID de paciente inválido"),
     body("vaccinationDate")
@@ -22,7 +24,6 @@ router.post(
       .withMessage("La fecha de vacunación es obligatoria")
       .isISO8601()
       .withMessage("Fecha inválida"),
-    // 👇 vaccineType es opcional si se envía productId
     body("vaccineType")
       .optional()
       .isString()
@@ -30,7 +31,6 @@ router.post(
       .trim()
       .isLength({ max: 50 })
       .withMessage("Máximo 50 caracteres"),
-    // 👇 cost es opcional si se envía productId
     body("cost")
       .optional()
       .isFloat({ min: 0 })
@@ -92,6 +92,7 @@ router.get(
 /* PUT /api/vaccinations/:id */
 router.put(
   "/:id",
+  checkCanCreate,
   [
     param("id").isMongoId().withMessage("ID de vacuna inválido"),
     body("vaccinationDate").optional().isISO8601().withMessage("Fecha inválida"),
@@ -147,6 +148,7 @@ router.put(
 /* DELETE /api/vaccinations/:id */
 router.delete(
   "/:id",
+  checkCanCreate,
   param("id").isMongoId().withMessage("ID de vacuna inválido"),
   handleInputErrors,
   VaccinationController.deleteVaccination

@@ -4,6 +4,7 @@ import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
 import { authenticate } from "../middleware/auth";
 import { ProductController } from "../controllers/ProductController";
+import { checkCanCreate } from "../middleware/checkCanCreate";
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.get(
 
 router.post(
   "/",
+  checkCanCreate,
   [
     body("name")
       .notEmpty().withMessage("El nombre es obligatorio")
@@ -69,6 +71,7 @@ router.post(
 
 router.put(
   "/:id",
+  checkCanCreate,
   [
     param("id").isMongoId().withMessage("ID de producto inválido"),
     body("name")
@@ -116,6 +119,7 @@ router.put(
 
 router.delete(
   "/:id",
+  checkCanCreate,
   param("id").isMongoId().withMessage("ID de producto inválido"),
   handleInputErrors,
   ProductController.deleteProduct

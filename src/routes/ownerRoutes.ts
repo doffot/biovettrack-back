@@ -7,6 +7,7 @@ import { PatientController } from '../controllers/PatientController';
 import upload from '../middleware/upload';
 import { patientValidation } from '../validation/patientValidation';
 import { authenticate } from '../middleware/auth';
+import { checkCanCreate } from '../middleware/checkCanCreate';
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.use(authenticate);
 // Crear dueño
 router.post(
   '/',
+  checkCanCreate,
   body('name')
     .notEmpty().withMessage('El nombre del dueño es obligatorio')
     .isString().withMessage('El nombre debe ser texto')
@@ -63,6 +65,7 @@ router.get(
 // Actualizar dueño
 router.put(
   '/:id',
+  checkCanCreate,
   param('id').isMongoId().withMessage('ID no válido'),
 
   body('name')
@@ -101,6 +104,7 @@ router.put(
 // Eliminar dueño
 router.delete(
   '/:id',
+  checkCanCreate,
   param('id').isMongoId().withMessage('ID no válido'),
   handleInputErrors,
   OwnerController.deleteOwner
@@ -109,6 +113,7 @@ router.delete(
 // ✅ CREAR PACIENTE ASOCIADO A UN DUEÑO
 router.post(
   '/:ownerId/patients',
+  checkCanCreate,
   param('ownerId').isMongoId().withMessage('ID de dueño inválido'),
   upload.single('photo'),
   ...patientValidation,
@@ -119,7 +124,6 @@ router.post(
 // GET /owners/:id/appointments - Obtener citas activas del owner
 router.get(
   '/:id/appointments',
-  authenticate,
   param('id').isMongoId().withMessage('ID de dueño inválido'),
   handleInputErrors,
   OwnerController.getOwnerAppointments
@@ -128,7 +132,6 @@ router.get(
 // GET /owners/:id/grooming-services
 router.get(
   '/:id/grooming-services',
-  authenticate,
   param('id').isMongoId().withMessage('ID de dueño inválido'),
   handleInputErrors,
   OwnerController.getOwnerGroomingServices
