@@ -27,7 +27,7 @@ router.post(
     .notEmpty().withMessage('El contacto (teléfono) es obligatorio')
     .isString().withMessage('El contacto debe ser texto')
     .matches(/^[\+]?[0-9\s\-\(\)]+$/)
-    .withMessage('Por favor ingrese un número de contacto válido (ej: +54 9 11 1234-5678)'),
+    .withMessage('Por favor ingrese un número de contacto válido (ej: +5891112345678)'),
 
   body('email')
     .optional({ nullable: true })

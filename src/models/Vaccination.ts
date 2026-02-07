@@ -4,8 +4,10 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IVaccination extends Document {
   patientId: mongoose.Types.ObjectId;
   veterinarianId: mongoose.Types.ObjectId;
-  productId?: mongoose.Types.ObjectId; // ← nuevo campo
+  productId?: mongoose.Types.ObjectId;
   vaccineType: string;
+  source: 'internal' | 'external';
+  appliedBy?: string;
   cost: number;
   vaccinationDate: Date;
   laboratory?: string;
@@ -32,7 +34,7 @@ const VaccinationSchema = new Schema(
     productId: {
       type: Schema.Types.ObjectId,
       ref: "Product",
-      required: false, // opcional: si se usa catálogo
+      required: false,
     },
     vaccineType: {
       type: String,
@@ -40,9 +42,22 @@ const VaccinationSchema = new Schema(
       trim: true,
       maxlength: [50, "El tipo de vacuna no puede exceder 50 caracteres"],
     },
+    source: {
+      type: String,
+      required: [true, "El origen de la vacuna es obligatorio"],
+      enum: ['internal', 'external'],
+      default: 'internal',
+    },
+    appliedBy: {
+      type: String,
+      trim: true,
+      maxlength: [100, "El nombre del aplicador no puede exceder 100 caracteres"],
+    },
     cost: {
       type: Number,
-      required: [true, "El costo es obligatorio"],
+      required: function (this: IVaccination) {
+        return this.source === 'internal';
+      },
       min: [0, "El costo no puede ser negativo"],
     },
     vaccinationDate: {
@@ -79,6 +94,7 @@ const VaccinationSchema = new Schema(
 // Índices
 VaccinationSchema.index({ patientId: 1, vaccinationDate: -1 });
 VaccinationSchema.index({ veterinarianId: 1, vaccinationDate: -1 });
+VaccinationSchema.index({ source: 1, patientId: 1 });
 
 const Vaccination = mongoose.model<IVaccination>("Vaccination", VaccinationSchema);
 export default Vaccination;

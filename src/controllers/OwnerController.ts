@@ -4,6 +4,7 @@ import Owner from '../models/Owner';
 import Appointment from '../models/Appointment';
 import Patient from '../models/Patient';
 import GroomingService from '../models/GroomingService';
+import Invoice from '../models/Invoice';
 
 export class OwnerController {
  
@@ -58,13 +59,57 @@ export class OwnerController {
    
   static getAllOwners = async (req: Request, res: Response) => {
     try {
-      const owners = await Owner.find({
-        veterinarian: req.user._id
-      }).sort({ createdAt: -1 });
+      // 1. Obtener dueños
+      const owners = await Owner.find({ veterinarian: req.user._id })
+        .sort({ createdAt: -1 })
+        .lean();
 
-      return res.json(owners);
+      // 2. Procesar datos extra
+      const ownersWithStats = await Promise.all(owners.map(async (owner) => {
+        
+        // --- A. MASCOTAS (Modelo Patient) ---
+        // Contamos cuántos pacientes tienen a este owner._id
+        const petsCount = await Patient.countDocuments({ owner: owner._id });
+
+        // --- B. ÚLTIMA VISITA Y DEUDA (Modelo Invoice) ---
+        // Buscamos todas las facturas de este dueño para sacar ambos datos de una vez
+        // (O podemos hacer dos consultas rápidas, lo haré separado para mayor claridad)
+
+        // 1. Búsqueda de Última Visita (Basada en la última factura generada)
+        const lastInvoice = await Invoice.findOne({ ownerId: owner._id })
+          .sort({ date: -1 }) // La más reciente primero
+          .select('date');
+
+        // 2. Búsqueda de Deuda (Facturas Pendientes o Parciales)
+        const debtInvoices = await Invoice.find({
+          ownerId: owner._id,
+          paymentStatus: { $in: ['Pendiente', 'Parcial'] }
+        }).select('total amountPaid');
+
+        // Calculamos el total adeudado
+        const totalDebt = debtInvoices.reduce((acc, inv) => {
+          // Si el total es 100 y pagó 20, debe 80.
+          // Si amountPaid es null o undefined, asumimos 0.
+          const debt = inv.total - (inv.amountPaid || 0);
+          return acc + (debt > 0 ? debt : 0);
+        }, 0);
+
+        const pendingInvoicesCount = debtInvoices.length;
+
+        // --- C. RETORNAR ---
+        return {
+          ...owner,
+          petsCount,
+          lastVisit: lastInvoice ? lastInvoice.date : null, // Fecha de la última factura
+          totalDebt,
+          pendingInvoices: pendingInvoicesCount
+        };
+      }));
+
+      return res.json(ownersWithStats);
+
     } catch (error: any) {
-      console.error('Error al obtener dueños:', error);
+      console.error('Error en getAllOwners:', error);
       return res.status(500).json({
         msg: 'Error interno del servidor'
       });

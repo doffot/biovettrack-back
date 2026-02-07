@@ -26,7 +26,7 @@ const OwnerSchema: Schema = new Schema(
       required: [true, "El contacto (teléfono) es obligatorio"],
       trim: true,
       match: [
-        /^[\+]?[0-9\s\-\(\)]{10,}$/,
+        /^[\+]?[0-9\s\-\(\)]{7,}$/,
         "Por favor ingrese un número de contacto válido"
       ]
     },

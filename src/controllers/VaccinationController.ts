@@ -10,123 +10,129 @@ import InventoryMovement from "../models/InventoryMovement";
 
 export class VaccinationController {
   /* ---------- CREAR VACUNA ---------- */
-  static createVaccination = async (req: Request, res: Response) => {
-    const { patientId } = req.params;
-    const data = req.body;
+static createVaccination = async (req: Request, res: Response) => {
+  const { patientId } = req.params;
+  const data = req.body;
 
+   // 👇 DEBUG: Ver qué llega del frontend
+  console.log("📦 Data recibida:", JSON.stringify(data, null, 2));
+  console.log("📦 PatientId:", patientId);
+
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: "Usuario no autenticado" });
+    }
+
+    if (!patientId) {
+      return res.status(400).json({ msg: "ID de paciente es obligatorio" });
+    }
+
+    const patient = await Patient.findOne({
+      _id: patientId,
+      mainVet: req.user._id,
+    });
+
+    if (!patient) {
+      return res.status(404).json({ msg: "Paciente no encontrado o no autorizado" });
+    }
+
+    const isInternal = data.source === 'internal';
+
+    // Lógica para producto del catálogo (solo interna)
+    let finalCost = data.cost || 0;
+    let finalVaccineType = data.vaccineType;
+
+    if (isInternal && data.productId) {
+      const product = await Product.findOne({
+        _id: data.productId,
+        veterinarian: req.user._id
+      });
+      if (!product) {
+        return res.status(404).json({ msg: "Producto no encontrado o no autorizado" });
+      }
+      finalCost = product.salePrice;
+    }
+
+    const vaccination = new Vaccination({
+      ...data,
+      patientId,
+      veterinarianId: req.user._id,
+      vaccineType: finalVaccineType,
+      cost: isInternal ? finalCost : (data.cost || 0),
+    });
+
+    await vaccination.save();
+
+    // CONSUMIR STOCK - Solo si es INTERNA y tiene productId
+    if (isInternal && data.productId) {
+      const product = await Product.findOne({
+        _id: data.productId,
+        veterinarian: req.user._id
+      });
+      
+      if (!product) {
+        return res.status(404).json({ msg: "Producto no encontrado o no autorizado" });
+      }
+
+      // Validar que sea no divisible (vacunas normalmente no lo son)
+      if (product.divisible) {
+        return res.status(400).json({ 
+          msg: "Las vacunas deben ser productos no divisibles. Usa unidades completas." 
+        });
+      }
+
+      // Obtener inventario
+      const inventory = await Inventory.findOne({
+        product: data.productId,
+        veterinarian: req.user._id
+      });
+
+      if (!inventory || inventory.stockUnits < 1) {
+        return res.status(400).json({ 
+          msg: `Stock insuficiente. Solo hay ${inventory?.stockUnits || 0} ${product.unit}(s) disponibles` 
+        });
+      }
+
+      // Consumir 1 unidad completa
+      inventory.stockUnits -= 1;
+      inventory.lastMovement = new Date();
+      await inventory.save();
+
+      // Crear movimiento de inventario
+      const movement = new InventoryMovement({
+        product: data.productId,
+        type: "salida",
+        reason: "uso_clinico",
+        quantityUnits: 1,
+        quantityDoses: 0,
+        stockAfterUnits: inventory.stockUnits,
+        stockAfterDoses: inventory.stockDoses,
+        referenceType: "Vaccination",
+        referenceId: vaccination._id,
+        createdBy: req.user._id,
+      });
+      await movement.save();
+    }
+
+    // BUSCAR Y COMPLETAR CITA AUTOMÁTICAMENTE
     try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: "Usuario no autenticado" });
+      const openAppointment = await Appointment.findOne({
+        patient: patientId,
+        type: "Vacuna",
+        status: "Programada",
+      }).sort({ date: 1 });
+
+      if (openAppointment) {
+        openAppointment.status = "Completada";
+        await openAppointment.save();
+        console.log(`✅ Cita ${openAppointment._id} marcada como Completada`);
       }
+    } catch (appointmentError) {
+      console.error("⚠️ Error al buscar/actualizar cita:", appointmentError);
+    }
 
-      if (!patientId) {
-        return res.status(400).json({ msg: "ID de paciente es obligatorio" });
-      }
-
-      const patient = await Patient.findOne({
-        _id: patientId,
-        mainVet: req.user._id,
-      });
-
-      if (!patient) {
-        return res.status(404).json({ msg: "Paciente no encontrado o no autorizado" });
-      }
-
-      // 👇 Lógica para producto del catálogo
-      let finalCost = data.cost;
-      let finalVaccineType = data.vaccineType;
-
-      if (data.productId) {
-        const product = await Product.findOne({
-          _id: data.productId,
-          veterinarian: req.user._id
-        });
-        if (!product) {
-          return res.status(404).json({ msg: "Producto no encontrado o no autorizado" });
-        }
-        finalCost = product.salePrice;
-        finalVaccineType = product.name;
-      }
-
-      const vaccination = new Vaccination({
-        ...data,
-        patientId,
-        veterinarianId: req.user._id,
-        vaccineType: finalVaccineType,
-        cost: finalCost,
-      });
-
-      await vaccination.save();
-
-      // 👇 CONSUMIR STOCK si se usó un producto del catálogo
-      if (data.productId) {
-        const product = await Product.findOne({
-          _id: data.productId,
-          veterinarian: req.user._id
-        });
-        
-        if (!product) {
-          return res.status(404).json({ msg: "Producto no encontrado o no autorizado" });
-        }
-
-        // Validar que sea no divisible (vacunas normalmente no lo son)
-        if (product.divisible) {
-          return res.status(400).json({ 
-            msg: "Las vacunas deben ser productos no divisibles. Usa unidades completas." 
-          });
-        }
-
-        // Obtener inventario
-        const inventory = await Inventory.findOne({
-          product: data.productId,
-          veterinarian: req.user._id
-        });
-
-        if (!inventory || inventory.stockUnits < 1) {
-          return res.status(400).json({ 
-            msg: `Stock insuficiente. Solo hay ${inventory?.stockUnits || 0} ${product.unit}(s) disponibles` 
-          });
-        }
-
-        // Consumir 1 unidad completa
-        inventory.stockUnits -= 1;
-        inventory.lastMovement = new Date();
-        await inventory.save();
-
-        // Crear movimiento de inventario
-        const movement = new InventoryMovement({
-          product: data.productId,
-          type: "salida",
-          reason: "uso_clinico",
-          quantityUnits: 1,
-          quantityDoses: 0,
-          stockAfterUnits: inventory.stockUnits,
-          stockAfterDoses: inventory.stockDoses,
-          referenceType: "Vaccination",
-          referenceId: vaccination._id,
-          createdBy: req.user._id,
-        });
-        await movement.save();
-      }
-
-      // BUSCAR Y COMPLETAR CITA AUTOMÁTICAMENTE
-      try {
-        const openAppointment = await Appointment.findOne({
-          patient: patientId,
-          type: "Vacuna",
-          status: "Programada",
-        }).sort({ date: 1 });
-
-        if (openAppointment) {
-          openAppointment.status = "Completada";
-          await openAppointment.save();
-          console.log(`✅ Cita ${openAppointment._id} marcada como Completada`);
-        }
-      } catch (appointmentError) {
-        console.error("⚠️ Error al buscar/actualizar cita:", appointmentError);
-      }
-
-      // CREAR FACTURA AUTOMÁTICA
+    // CREAR FACTURA AUTOMÁTICA - SOLO SI ES INTERNA
+    if (isInternal) {
       try {
         const invoice = new Invoice({
           ownerId: patient.owner,
@@ -152,19 +158,20 @@ export class VaccinationController {
       } catch (invoiceError) {
         console.error("⚠️ Error al crear factura para vacuna:", invoiceError);
       }
-
-      res.status(201).json({
-        msg: "Vacuna registrada correctamente",
-        vaccination,
-      });
-    } catch (error: any) {
-      if (error.name === "ValidationError") {
-        return res.status(400).json({ msg: error.message });
-      }
-      console.error("Error en createVaccination:", error);
-      res.status(500).json({ msg: "Error al registrar la vacuna" });
     }
-  };
+
+    res.status(201).json({
+      msg: "Vacuna registrada correctamente",
+      vaccination,
+    });
+  } catch (error: any) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ msg: error.message });
+    }
+    console.error("Error en createVaccination:", error);
+    res.status(500).json({ msg: "Error al registrar la vacuna" });
+  }
+};
 
   /* ---------- OBTENER VACUNAS POR PACIENTE ---------- */
   static getVaccinationsByPatient = async (req: Request, res: Response) => {

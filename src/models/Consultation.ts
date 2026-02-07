@@ -33,18 +33,6 @@ export interface IConsultation extends Document {
   lethargyOrWeakness?: boolean;
   currentTreatment?: string;
   medications?: string;
-  parvovirusVaccine?: string;
-  parvovirusVaccineDate?: Date;
-  quintupleSextupleVaccine?: string;
-  quintupleSextupleVaccineDate?: Date;
-  rabiesVaccineDogs?: string;
-  rabiesVaccineDateDogs?: Date;
-  dewormingDogs?: string;
-  tripleQuintupleFelineVaccine?: string;
-  tripleQuintupleFelineVaccineDate?: Date;
-  rabiesVaccineCats?: string;
-  rabiesVaccineDateCats?: Date;
-  dewormingCats?: string;
   previousIllnesses?: string;
   previousSurgeries?: string;
   adverseReactions?: string;
@@ -174,18 +162,6 @@ const ConsultationSchema = new Schema(
     },
     currentTreatment: { type: String, trim: true, maxlength: 300 },
     medications: { type: String, trim: true, maxlength: 300 },
-    parvovirusVaccine: { type: String, trim: true, maxlength: 100 },
-    parvovirusVaccineDate: { type: Date },
-    quintupleSextupleVaccine: { type: String, trim: true, maxlength: 100 },
-    quintupleSextupleVaccineDate: { type: Date },
-    rabiesVaccineDogs: { type: String, trim: true, maxlength: 100 },
-    rabiesVaccineDateDogs: { type: Date },
-    dewormingDogs: { type: String, trim: true, maxlength: 200 },
-    tripleQuintupleFelineVaccine: { type: String, trim: true, maxlength: 100 },
-    tripleQuintupleFelineVaccineDate: { type: Date },
-    rabiesVaccineCats: { type: String, trim: true, maxlength: 100 },
-    rabiesVaccineDateCats: { type: Date },
-    dewormingCats: { type: String, trim: true, maxlength: 200 },
     previousIllnesses: { type: String, trim: true, maxlength: 300 },
     previousSurgeries: { type: String, trim: true, maxlength: 300 },
     adverseReactions: { type: String, trim: true, maxlength: 300 },

@@ -15,7 +15,7 @@ export type Species =
   | 'Hurón'
   | 'Otro';
 
-// Interfaz IPatient actualizada
+// Interfaz IPatient
 export interface IPatient extends Document {
   name: string;
   birthDate: Date;
@@ -29,11 +29,12 @@ export interface IPatient extends Document {
   photo?: string;
   mainVet: mongoose.Types.ObjectId | IVeterinarian;
   referringVet?: string;
+  observations?: string; 
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Esquema actualizado
+// Esquema de Mongoose
 const PatientSchema = new Schema(
   {
     name: {
@@ -103,6 +104,13 @@ const PatientSchema = new Schema(
       required: false,
       trim: true,
       default: null
+    },
+    // Campo de observaciones / alergias
+    observations: {
+      type: String,
+      required: false,
+      trim: true,
+      default: ''
     }
   },
   {
@@ -110,6 +118,7 @@ const PatientSchema = new Schema(
   }
 );
 
+// Configuraciones adicionales
 PatientSchema.set('toJSON', { virtuals: true });
 PatientSchema.set('toObject', { virtuals: true });
 

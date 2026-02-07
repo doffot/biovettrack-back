@@ -9,7 +9,7 @@ import { checkCanCreate } from '../middleware/checkCanCreate';
 
 const router = Router();
 
-// Validaciones opcionales para actualización
+// Validaciones opcionales para actualización y creación
 const optionalPatientValidation = [
   body('name')
     .optional()
@@ -78,6 +78,12 @@ const optionalPatientValidation = [
     .optional()
     .isString().withMessage('El veterinario referido debe ser texto')
     .trim(),
+
+  // NUEVO CAMPO AGREGADO AQUÍ
+  body('observations')
+    .optional()
+    .isString().withMessage('Las observaciones deben ser texto')
+    .trim(),
 ];
 
 // Obtener paciente por ID
@@ -94,7 +100,7 @@ router.put(
   checkCanCreate,
   param('id').isMongoId().withMessage('ID inválido'),
   upload.single('photo'),
-  ...optionalPatientValidation,
+  ...optionalPatientValidation, // Aquí ya se incluye observations
   handleInputErrors,
   PatientController.updatePatient
 );
@@ -119,6 +125,7 @@ router.get(
 // Listar todos los pacientes
 router.get('/', 
   authenticate,
-  PatientController.getAllPatient);
+  PatientController.getAllPatient
+);
 
 export default router;
