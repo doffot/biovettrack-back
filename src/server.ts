@@ -63,4 +63,21 @@ app.use('/api/patients/:patientId/grooming', patientGroomingRouter);
 // Rutas de citas
 app.use('/api/patients/:patientId/appointments', patientAppointmentRouter);
 
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'BioVetTrack API is running! 🚀', 
+    status: 'online',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    service: 'biovettrack-back',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 export default app;
