@@ -1,4 +1,3 @@
-// src/routes/medicalStudyRoutes.ts
 import { Router } from "express";
 import { body, param } from "express-validator";
 import { handleInputErrors } from "../middleware/validation";
@@ -15,54 +14,39 @@ router.use(authenticate);
 router.post(
   "/:patientId",
   checkCanCreate,
-  uploadPDF.single("pdfFile"),
+  uploadPDF.single("pdfFile"), // 1. Multer procesa el archivo primero
   [
+    // 2. Luego validamos los campos de texto
     param("patientId").isMongoId().withMessage("ID de paciente inválido"),
     body("professional")
-      .notEmpty().withMessage("El nombre del profesional es obligatorio")
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 100 }).withMessage("Máximo 100 caracteres"),
+      .notEmpty().withMessage("El profesional es obligatorio"),
     body("studyType")
-      .notEmpty().withMessage("El tipo de estudio es obligatorio")
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 50 }).withMessage("Máximo 50 caracteres"),
+      .notEmpty().withMessage("El tipo de estudio es obligatorio"),
     body("date")
-      .notEmpty().withMessage("La fecha es obligatoria")
-      .isISO8601().withMessage("Fecha inválida"),
-    body("presumptiveDiagnosis")
-      .optional()
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 500 }).withMessage("Máximo 500 caracteres"),
-    body("notes")
-      .optional()
-      .isString().withMessage("Debe ser texto")
-      .trim().isLength({ max: 300 }).withMessage("Máximo 300 caracteres"),
+      .notEmpty().withMessage("La fecha es obligatoria"),
   ],
   handleInputErrors,
   MedicalStudyController.createMedicalStudy
 );
 
-/* GET /api/medical-studies/patient/:patientId */
 router.get(
   "/patient/:patientId",
-  param("patientId").isMongoId().withMessage("ID de paciente inválido"),
+  param("patientId").isMongoId(),
   handleInputErrors,
   MedicalStudyController.getStudiesByPatient
 );
 
-/* GET /api/medical-studies/:id */
 router.get(
   "/:id",
-  param("id").isMongoId().withMessage("ID de estudio inválido"),
+  param("id").isMongoId(),
   handleInputErrors,
   MedicalStudyController.getMedicalStudyById
 );
 
-/* DELETE /api/medical-studies/:id */
 router.delete(
   "/:id",
   checkCanCreate,
-  param("id").isMongoId().withMessage("ID de estudio inválido"),
+  param("id").isMongoId(),
   handleInputErrors,
   MedicalStudyController.deleteMedicalStudy
 );

@@ -1,193 +1,144 @@
-// src/controllers/MedicalStudyController.ts
 import type { Request, Response } from "express";
 import MedicalStudy from "../models/MedicalStudy";
 import Patient from "../models/Patient";
 import cloudinary from "../config/cloudinary";
+import fs from "fs/promises";
 import { deleteTempPDFFile } from "../middleware/uploadPDF";
 
 export class MedicalStudyController {
-  /* ---------- CREAR ESTUDIO MÉDICO ---------- */
+  
+  /* ---------- CREAR (SUBIR PDF) ---------- */
   static createMedicalStudy = async (req: Request, res: Response) => {
+    // 1. El ID viene en la URL
+    const { patientId } = req.params;
+    // 2. Los datos de texto vienen en el body (gracias a Multer)
+    const { professional, studyType, presumptiveDiagnosis, notes, date } = req.body;
+
     try {
       if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
+        return res.status(401).json({ msg: "Usuario no autenticado" });
       }
 
+      // Validar archivo
       if (!req.file) {
-        return res.status(400).json({ msg: 'Archivo PDF requerido' });
+        return res.status(400).json({ msg: "El archivo PDF es obligatorio" });
       }
 
-      const { patientId, professional, studyType, presumptiveDiagnosis, notes, date } = req.body;
-
-      if (!patientId) {
-        await deleteTempPDFFile(req.file.path);
-        return res.status(400).json({ msg: 'ID de paciente es obligatorio' });
-      }
-
+      // Validar Paciente y Pertenencia
       const patient = await Patient.findOne({
         _id: patientId,
         mainVet: req.user._id
       });
-      
+
       if (!patient) {
         await deleteTempPDFFile(req.file.path);
-        return res.status(404).json({ msg: 'Paciente no encontrado o no autorizado' });
+        return res.status(404).json({ msg: "Paciente no encontrado o no autorizado" });
       }
 
-      // Subir PDF a Cloudinary
       let pdfUrl = "";
+
+      // Subir a Cloudinary
       try {
         const result = await cloudinary.uploader.upload(req.file.path, {
           folder: 'medical-studies',
           resource_type: 'raw',
           filename_override: `study_${Date.now()}_${patientId}`,
         });
+       
+        
         pdfUrl = result.secure_url;
-      } catch (uploadError) {
+        
+        // Limpiar temporal
         await deleteTempPDFFile(req.file.path);
-        console.error('Error subiendo PDF:', uploadError);
-        return res.status(500).json({ msg: 'Error al subir el archivo PDF' });
+
+      } catch (uploadError) {
+        console.error("Error Cloudinary:", uploadError);
+        await deleteTempPDFFile(req.file.path);
+        return res.status(500).json({ msg: "Error al subir el archivo a la nube" });
       }
 
-      await deleteTempPDFFile(req.file.path);
-
+      // Guardar en BD
       const medicalStudy = new MedicalStudy({
         patientId,
         veterinarianId: req.user._id,
         professional,
         studyType,
-        pdfFile: pdfUrl,
+        date: new Date(date),
         presumptiveDiagnosis,
         notes,
-        date: new Date(date),
+        pdfFile: pdfUrl
       });
 
       await medicalStudy.save();
 
-      res.status(201).json({
-        msg: 'Estudio médico registrado correctamente',
-        study: medicalStudy,
+      res.status(201).json({ 
+        msg: "Estudio médico registrado correctamente", 
+        study: medicalStudy 
       });
 
-    } catch (error: any) {
-      if (req.file) {
-        await deleteTempPDFFile(req.file.path);
-      }
-      
-      if (error.name === 'ValidationError') {
-        return res.status(400).json({ msg: error.message });
-      }
-      console.error('Error en createMedicalStudy:', error);
-      res.status(500).json({ msg: 'Error al registrar el estudio médico' });
+    } catch (error) {
+      console.error("Error createMedicalStudy:", error);
+      if (req.file) await deleteTempPDFFile(req.file.path);
+      res.status(500).json({ msg: "Error al registrar el estudio médico" });
     }
   };
 
-  /* ---------- OBTENER ESTUDIOS POR PACIENTE ---------- */
+  /* ---------- OBTENER POR PACIENTE ---------- */
   static getStudiesByPatient = async (req: Request, res: Response) => {
+    const { patientId } = req.params;
     try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
-      }
+      if (!req.user) return res.status(401).json({ msg: "No autorizado" });
 
-      const { patientId } = req.params;
-
-      if (!patientId) {
-        return res.status(400).json({ msg: 'ID de paciente es obligatorio' });
-      }
-
-      const patient = await Patient.findOne({
-        _id: patientId,
-        mainVet: req.user._id
-      });
-
-      if (!patient) {
-        return res.status(404).json({ msg: 'Paciente no encontrado o no autorizado' });
-      }
+      // Validar acceso al paciente
+      const patient = await Patient.findOne({ _id: patientId, mainVet: req.user._id });
+      if (!patient) return res.status(404).json({ msg: "Paciente no encontrado" });
 
       const studies = await MedicalStudy.find({ patientId })
         .sort({ date: -1 });
-
+      
       res.json({ studies });
-    } catch (error: any) {
-      console.error('Error en getStudiesByPatient:', error);
-      res.status(500).json({ msg: 'Error al obtener estudios del paciente' });
+    } catch (error) {
+      res.status(500).json({ msg: "Error al obtener estudios" });
     }
   };
 
-  /* ---------- OBTENER ESTUDIO POR ID ---------- */
+  /* ---------- OBTENER POR ID ---------- */
   static getMedicalStudyById = async (req: Request, res: Response) => {
+    const { id } = req.params;
     try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
-      }
+      const study = await MedicalStudy.findOne({
+        _id: id,
+        veterinarianId: req.user._id
+      });
 
-      const { id } = req.params;
-
-      const study = await MedicalStudy.findById(id);
       if (!study) {
         return res.status(404).json({ msg: "Estudio no encontrado" });
       }
-
-      // Verificar que el paciente pertenece al veterinario
-      const patient = await Patient.findOne({
-        _id: study.patientId,
-        mainVet: req.user._id
-      });
-
-      if (!patient) {
-        return res.status(403).json({ msg: "No tienes permiso para ver este estudio" });
-      }
-      
       res.json({ study });
-    } catch (error: any) {
-      console.error('Error en getMedicalStudyById:', error);
-      res.status(500).json({ msg: 'Error al obtener el estudio' });
+    } catch (error) {
+      res.status(500).json({ msg: "Error al obtener el estudio" });
     }
   };
 
-  /* ---------- ELIMINAR ESTUDIO ---------- */
+  /* ---------- ELIMINAR ---------- */
   static deleteMedicalStudy = async (req: Request, res: Response) => {
+    const { id } = req.params;
     try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: 'Usuario no autenticado' });
-      }
+      const study = await MedicalStudy.findOneAndDelete({
+        _id: id,
+        veterinarianId: req.user._id
+      });
 
-      const { id } = req.params;
-
-      const study = await MedicalStudy.findById(id);
       if (!study) {
         return res.status(404).json({ msg: "Estudio no encontrado" });
       }
 
-      const patient = await Patient.findOne({
-        _id: study.patientId,
-        mainVet: req.user._id
-      });
-
-      if (!patient) {
-        return res.status(403).json({ msg: "No tienes permiso para eliminar este estudio" });
-      }
-
-      // Eliminar archivo de Cloudinary
-      if (study.pdfFile) {
-        try {
-          const publicId = study.pdfFile.split('/').pop()?.split('.')[0];
-          if (publicId) {
-            await cloudinary.uploader.destroy(`medical-studies/${publicId}`, {
-              resource_type: 'raw'
-            });
-          }
-        } catch (cloudinaryError) {
-          console.error('Error eliminando PDF de Cloudinary:', cloudinaryError);
-        }
-      }
-
-      await MedicalStudy.findByIdAndDelete(id);
+      // Intentar eliminar de Cloudinary (opcional, limpieza)
+      // Se requiere extraer el public_id de la URL o haberlo guardado
       
-      res.json({ msg: "Estudio médico eliminado correctamente" });
-    } catch (error: any) {
-      console.error('Error en deleteMedicalStudy:', error);
-      res.status(500).json({ msg: 'Error al eliminar el estudio' });
+      res.json({ msg: "Estudio eliminado correctamente" });
+    } catch (error) {
+      res.status(500).json({ msg: "Error al eliminar estudio" });
     }
   };
 }

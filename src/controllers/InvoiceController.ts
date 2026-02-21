@@ -2,6 +2,8 @@
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import Invoice from "../models/Invoice";
+import Product from "../models/Product";
+import InventoryMovement from "../models/InventoryMovement";
 
 export class InvoiceController {
   /* ---------- CREAR FACTURA ---------- */
@@ -38,7 +40,7 @@ export class InvoiceController {
       if (error.name === "ValidationError") {
         return res.status(400).json({ msg: "Datos inválidos", errors: error.errors });
       }
-      console.error("Error en createInvoice:", error);
+     
       return res.status(500).json({ msg: "Error al crear la factura" });
     }
   };
@@ -305,6 +307,79 @@ static updateInvoice = async (req: Request, res: Response) => {
       return res.status(500).json({ msg: "Error al actualizar el item" });
     }
   };
+
+// moviemientos de inventario 
+static getMovements = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ msg: "Usuario no autenticado" });
+    }
+
+    const {
+      productId,
+      type,
+      reason,
+      dateFrom,
+      dateTo,
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    // Obtener productos del veterinario autenticado
+    const products = await Product.find({ 
+      veterinarian: req.user._id 
+    }).select('_id');
+    
+    const productIds = products.map(p => p._id);
+
+    const filter: any = {
+      product: productId ? productId : { $in: productIds }
+    };
+
+    if (type) {
+      filter.type = type;
+    }
+
+    if (reason) {
+      filter.reason = reason;
+    }
+
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) {
+        filter.createdAt.$gte = new Date(dateFrom as string);
+      }
+      if (dateTo) {
+        const endDate = new Date(dateTo as string);
+        endDate.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = endDate;
+      }
+    }
+
+    const movements = await InventoryMovement.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit))
+      .populate("product", "name unit doseUnit")
+      .populate("createdBy", "name lastName");
+
+    const total = await InventoryMovement.countDocuments(filter);
+
+    res.json({
+      movements,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (error: any) {
+    console.error("Error en getMovements:", error);
+    res.status(500).json({ msg: "Error al obtener movimientos" });
+  }
+};
+
 
   /* ---------- BUSCAR FACTURA POR RESOURCE ID ---------- */
   static getInvoiceByResourceId = async (req: Request, res: Response) => {

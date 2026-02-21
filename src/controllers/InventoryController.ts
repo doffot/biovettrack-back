@@ -1,10 +1,14 @@
 // src/controllers/InventoryController.ts
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import Product from "../models/Product";
 import Inventory from "../models/Inventory";
 import InventoryMovement, { MovementReason, MovementType } from "../models/InventoryMovement";
+import { ValidationChain } from "express-validator";
 
 export class InventoryController {
+  static getMovements(arg0: string, arg1: ValidationChain[], handleInputErrors: (req: Request, res: Response, next: NextFunction) => void, getMovements: any) {
+    throw new Error("Method not implemented.");
+  }
 
   // Helper: obtener inventario garantizando pertenencia
   private static async findInventory(productId: string, vetId: string) {

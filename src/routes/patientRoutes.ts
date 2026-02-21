@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { handleInputErrors } from '../middleware/validation';
 import { PatientController } from '../controllers/PatientController';
+import { PatientHistoryController } from '../controllers/PatientHistoryController'; // <--- IMPORTAR ESTO
 import upload from '../middleware/upload';
 import { authenticate } from '../middleware/auth';
 import { checkCanCreate } from '../middleware/checkCanCreate';
@@ -79,40 +80,26 @@ const optionalPatientValidation = [
     .isString().withMessage('El veterinario referido debe ser texto')
     .trim(),
 
-  // NUEVO CAMPO AGREGADO AQUÍ
   body('observations')
     .optional()
     .isString().withMessage('Las observaciones deben ser texto')
     .trim(),
 ];
 
-// Obtener paciente por ID
+// ==========================================
+// RUTAS DE HISTORIAL (NUEVO)
+// ==========================================
 router.get(
-  '/:id',
-  param('id').isMongoId().withMessage('ID inválido'),
+  '/:patientId/history',
+  authenticate, // Protege la ruta para obtener req.user
+  param('patientId').isMongoId().withMessage('ID de paciente inválido'),
   handleInputErrors,
-  PatientController.getPatientById
+  PatientHistoryController.getFullHistory
 );
 
-// Actualizar paciente
-router.put(
-  '/:id',
-  checkCanCreate,
-  param('id').isMongoId().withMessage('ID inválido'),
-  upload.single('photo'),
-  ...optionalPatientValidation, // Aquí ya se incluye observations
-  handleInputErrors,
-  PatientController.updatePatient
-);
-
-// Eliminar paciente
-router.delete(
-  '/:id',
-  checkCanCreate,
-  param('id').isMongoId().withMessage('ID inválido'),
-  handleInputErrors,
-  PatientController.deletePatient
-);
+// ==========================================
+// RUTAS CRUD DE PACIENTES
+// ==========================================
 
 // Obtener pacientes por dueño
 router.get(
@@ -126,6 +113,37 @@ router.get(
 router.get('/', 
   authenticate,
   PatientController.getAllPatient
+);
+
+// Obtener paciente por ID
+router.get(
+  '/:id',
+  authenticate, // Se recomienda autenticar también aquí para validar mainVet
+  param('id').isMongoId().withMessage('ID inválido'),
+  handleInputErrors,
+  PatientController.getPatientById
+);
+
+// Actualizar paciente
+router.put(
+  '/:id',
+  authenticate, // Asegura autenticación
+  checkCanCreate,
+  param('id').isMongoId().withMessage('ID inválido'),
+  upload.single('photo'),
+  ...optionalPatientValidation,
+  handleInputErrors,
+  PatientController.updatePatient
+);
+
+// Eliminar paciente
+router.delete(
+  '/:id',
+  authenticate, // Asegura autenticación
+  checkCanCreate,
+  param('id').isMongoId().withMessage('ID inválido'),
+  handleInputErrors,
+  PatientController.deletePatient
 );
 
 export default router;

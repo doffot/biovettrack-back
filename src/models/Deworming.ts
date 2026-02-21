@@ -1,10 +1,10 @@
-// src/models/Deworming.ts
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IDeworming extends Document {
   patientId: mongoose.Types.ObjectId;
-  veterinarianId: mongoose.Types.ObjectId;
-  productId?: mongoose.Types.ObjectId; // ← nuevo campo
+  veterinarianId?: mongoose.Types.ObjectId; // Ahora es opcional en la interfaz
+  productId?: mongoose.Types.ObjectId;
+  source: "Interno" | "Externo";
   dewormingType: "Interna" | "Externa" | "Ambas";
   productName: string;
   dose: string;
@@ -25,12 +25,24 @@ const DewormingSchema = new Schema(
     veterinarianId: {
       type: Schema.Types.ObjectId,
       ref: "Veterinarian",
-      required: [true, "El ID del veterinario es obligatorio"],
+      // Validación dinámica: obligatorio solo si la fuente es Interno
+      required: function (this: IDeworming) {
+        return this.source === "Interno";
+      },
+    },
+    source: {
+      type: String,
+      required: [true, "El origen (source) es obligatorio"],
+      enum: {
+        values: ["Interno", "Externo"],
+        message: "El origen debe ser 'Interno' (clínica) o 'Externo' (fuera de la clínica)",
+      },
+      default: "Interno",
     },
     productId: {
       type: Schema.Types.ObjectId,
       ref: "Product",
-      required: false, // opcional
+      required: false,
     },
     dewormingType: {
       type: String,
@@ -56,10 +68,12 @@ const DewormingSchema = new Schema(
       type: Number,
       required: [true, "El costo es obligatorio"],
       min: [0, "El costo no puede ser negativo"],
+      default: 0,
     },
     applicationDate: {
       type: Date,
       required: [true, "La fecha de aplicación es obligatoria"],
+      default: Date.now,
     },
     nextApplicationDate: {
       type: Date,
@@ -70,9 +84,11 @@ const DewormingSchema = new Schema(
   }
 );
 
-// Índices
+// Índices para optimizar búsquedas frecuentes
 DewormingSchema.index({ patientId: 1, applicationDate: -1 });
 DewormingSchema.index({ veterinarianId: 1, applicationDate: -1 });
+DewormingSchema.index({ source: 1 });
 
 const Deworming = mongoose.model<IDeworming>("Deworming", DewormingSchema);
+
 export default Deworming;

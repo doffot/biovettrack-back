@@ -45,4 +45,12 @@ router.get("/:productId",
 // Productos con stock bajo
 router.get("/low-stock", InventoryController.getLowStockProducts);
 
+// Listar movimientos
+router.get(
+  "/:productId",
+  param("productId").isMongoId().withMessage("ID de producto inválido"),
+  handleInputErrors,
+  InventoryController.getInventory
+)
+
 export default router;
