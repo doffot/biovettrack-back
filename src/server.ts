@@ -26,6 +26,7 @@ import purchaseRoutes from './routes/purchaseRoutes';
 import saleRoutes from './routes/saleRoutes';
 import treatmentRoutes from './routes/treatmentRoutes';
 import veterinaryServiceRoutes from './routes/veterinaryServiceRoutes'; 
+import veterinaryClinicRoutes from './routes/veterinaryClinicRoutes'; 
 
 connectDB();
 
@@ -54,6 +55,7 @@ app.use("/api/purchases", purchaseRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/treatments", treatmentRoutes);
 app.use("/api/veterinary-services", veterinaryServiceRoutes); 
+app.use("/api/veterinary-clinic", veterinaryClinicRoutes);
 
 app.use('/api/lab-exams', labExamRoutes);
 app.use('/api/patients/:patientId/lab-exams', labExamRoutes);
