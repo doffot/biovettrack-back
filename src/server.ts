@@ -18,6 +18,7 @@ import vaccinationRouter from './routes/vaccinationRoutes';
 import dewormingRouter from './routes/dewormingRoutes';
 import consultationRouter from './routes/consultationRoutes';
 import recipeRouter from './routes/recipeRoutes'; 
+import medicalOrderRouter from './routes/medicalOrderRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import productRoutes from './routes/productRoutes';
 import inventoryRoutes from './routes/inventoryRoutes';
@@ -45,6 +46,7 @@ app.use("/api/vaccinations", vaccinationRouter);
 app.use("/api/dewormings", dewormingRouter);
 app.use("/api/consultations", consultationRouter);
 app.use("/api/recipes", recipeRouter); 
+app.use("/api/medical-orders", medicalOrderRouter);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/inventory", inventoryRoutes);
@@ -74,7 +76,7 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'ok', 
-    service: 'biovettrack-back',
+    service: 'biovettrack-API',
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
