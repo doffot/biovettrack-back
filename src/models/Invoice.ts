@@ -110,7 +110,7 @@ const InvoiceSchema = new Schema(
       type: Number,
       min: [0, "El tipo de cambio debe ser positivo"],
       validate: {
-        validator: function (value: number) {
+        validator: function (this: IInvoice, value: number) {
           if (this.currency === "Bs") {
             return value != null && value > 0;
           }
@@ -169,8 +169,16 @@ const InvoiceSchema = new Schema(
   }
 );
 
-// ✅ Middleware corregido: siempre recalcula amountPaid y paymentStatus
 InvoiceSchema.pre('save', function(next) {
+  if (this.isModified('paymentStatus') && this.paymentStatus === 'Cancelado') {
+    return next();
+  }
+  
+
+  if (this.paymentStatus === 'Cancelado') {
+    return next();
+  }
+
   // Recalcular amountPaid a partir de los montos reales
   const bsToUSD = this.exchangeRate && this.amountPaidBs
     ? this.amountPaidBs / this.exchangeRate
@@ -181,7 +189,7 @@ InvoiceSchema.pre('save', function(next) {
   if (this.amountPaid < 0) this.amountPaid = 0;
 
   // Recalcular el estado de pago
-  const tolerance = 0.01; // Tolerancia para redondeo
+  const tolerance = 0.01;
   if (this.amountPaid >= this.total - tolerance) {
     this.paymentStatus = 'Pagado';
   } else if (this.amountPaid > 0) {

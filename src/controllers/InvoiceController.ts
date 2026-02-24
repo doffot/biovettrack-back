@@ -150,9 +150,12 @@ static updateInvoice = async (req: Request, res: Response) => {
       return res.status(404).json({ msg: "Factura no encontrada" });
     }
 
-      
+    // ✅ NUEVO: Permitir cambio directo de paymentStatus
+    if (updateData.paymentStatus !== undefined) {
+      currentInvoice.paymentStatus = updateData.paymentStatus;
+    }
 
-    //  Manejo de pagos incrementales (addAmountPaidUSD / addAmountPaidBs)
+    // Manejo de pagos incrementales
     if (updateData.addAmountPaidUSD !== undefined || updateData.addAmountPaidBs !== undefined) {
       if (updateData.addAmountPaidUSD !== undefined && updateData.addAmountPaidUSD > 0) {
         currentInvoice.amountPaidUSD = (currentInvoice.amountPaidUSD || 0) + updateData.addAmountPaidUSD;
@@ -161,7 +164,7 @@ static updateInvoice = async (req: Request, res: Response) => {
         currentInvoice.amountPaidBs = (currentInvoice.amountPaidBs || 0) + updateData.addAmountPaidBs;
       }
     }
-    //  Manejo de pagos directos (reemplazo total)
+    // Manejo de pagos directos
     else if (updateData.amountPaidUSD !== undefined || updateData.amountPaidBs !== undefined) {
       if (updateData.amountPaidUSD !== undefined) {
         currentInvoice.amountPaidUSD = updateData.amountPaidUSD;
@@ -171,7 +174,7 @@ static updateInvoice = async (req: Request, res: Response) => {
       }
     }
 
-    //  Otros campos
+    // Otros campos
     if (updateData.exchangeRate !== undefined && updateData.exchangeRate > 0) {
       currentInvoice.exchangeRate = updateData.exchangeRate;
     }
@@ -182,9 +185,6 @@ static updateInvoice = async (req: Request, res: Response) => {
       currentInvoice.paymentReference = updateData.paymentReference;
     }
 
-    //  Guardar — el middleware del modelo se encargará de:
-    // - Recalcular amountPaid
-    // - Actualizar paymentStatus
     await currentInvoice.save();
 
     const populatedInvoice = await Invoice.findById(id)
@@ -206,7 +206,6 @@ static updateInvoice = async (req: Request, res: Response) => {
     return res.status(500).json({ msg: "Error al actualizar la factura" });
   }
 };
-
   /* ---------- ELIMINAR FACTURA ---------- */
   static deleteInvoice = async (req: Request, res: Response) => {
     try {
