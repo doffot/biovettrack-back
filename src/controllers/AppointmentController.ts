@@ -16,6 +16,8 @@ export class AppointmentController {
         return res.status(401).json({ msg: 'Usuario no autenticado' });
       }
 
+    
+
       if (!mongoose.Types.ObjectId.isValid(patientId)) {
         return res.status(400).json({ msg: 'ID de paciente inválido' });
       }
