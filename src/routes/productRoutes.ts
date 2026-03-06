@@ -34,7 +34,7 @@ router.post(
       .isString().withMessage("Debe ser texto")
       .trim().isLength({ max: 100 }).withMessage("Máximo 100 caracteres"),
     body("category")
-      .isIn(["vacuna", "desparasitante", "medicamento", "alimento", "accesorio", "otro"])
+      .isIn(["vacuna", "desparasitante", "medicamento","test",  "alimento", "accesorio", "otro"])
       .withMessage("Categoría inválida"),
     body("salePrice")
       .isFloat({ min: 0 }).withMessage("Precio de venta inválido"),

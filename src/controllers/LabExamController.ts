@@ -1,276 +1,95 @@
 // src/controllers/LabExamController.ts
 import type { Request, Response } from "express";
-import LabExam from "../models/LabExam";
-import Invoice from "../models/Invoice";
-import Patient from "../models/Patient";
-import Appointment from "../models/Appointment";
-import { validateDifferentialSum } from "../utils/validateDifferentialCount";
+import { LabExamService } from "../services/LabExamService";
 
 export class LabExamController {
-  /* ---------- CREAR ---------- */
+  
   static createLabExam = async (req: Request, res: Response) => {
-    const data = req.body;
-
     try {
-      if (!req.user || !req.user._id) {
+      if (!req.user?._id) {
         return res.status(401).json({ msg: "Usuario no autenticado" });
       }
-
-      if (
-        data.differentialCount &&
-        !validateDifferentialSum(data.differentialCount)
-      ) {
-        return res.status(400).json({
-          msg: "La suma del conteo diferencial no puede superar 100",
-        });
-      }
-
-      const labExam = new LabExam({
-        ...data,
-        vetId: req.user._id,
-      });
-      await labExam.save();
-
-      // Completar cita automáticamente
-      if (labExam.patientId) {
-        try {
-          const openAppointment = await Appointment.findOne({
-            patient: labExam.patientId,
-            type: "Laboratorio",
-            status: "Programada",
-          }).sort({ date: 1 });
-
-          if (openAppointment) {
-            openAppointment.status = "Completada";
-            await openAppointment.save();
-          }
-        } catch (appointmentError) {
-          console.error("Error al actualizar cita:", appointmentError);
-        }
-      }
-
-      // Crear factura automáticamente
-      try {
-        const isReferredPatient = !labExam.patientId;
-        
-        // Calcular total con descuento
-        const totalCost = labExam.cost - (labExam.discount || 0);
-        const finalTotal = totalCost > 0 ? totalCost : 0;
-        
-        // Si el total es 0 (descuento total), marcar como pagado
-        const isFreeDueToDiscount = finalTotal === 0;
-
-        let invoiceData: any;
-
-        if (isReferredPatient) {
-          const exchangeRate = data.exchangeRate || 1;
-          const paymentAmount = data.paymentAmount || 0;
-          const paymentCurrency = data.paymentCurrency || "USD";
-          const creditUsed = data.creditAmountUsed || 0;
-
-          let amountPaidUSD = 0;
-          let amountPaidBs = 0;
-
-          if (paymentCurrency === "Bs" && exchangeRate > 0) {
-            amountPaidBs = paymentAmount;
-          } else {
-            amountPaidUSD = paymentAmount;
-          }
-
-          amountPaidUSD += creditUsed;
-
-          invoiceData = {
-            items: [
-              {
-                type: "labExam",
-                resourceId: labExam._id,
-                description: `Hemograma - ${labExam.patientName}`,
-                cost: finalTotal,
-                quantity: 1,
-              },
-            ],
-            currency: "USD",
-            exchangeRate: exchangeRate,
-            total: finalTotal,
-            amountPaidUSD: isFreeDueToDiscount ? 0 : parseFloat(amountPaidUSD.toFixed(2)),
-            amountPaidBs: isFreeDueToDiscount ? 0 : parseFloat(amountPaidBs.toFixed(2)),
-            paymentStatus: isFreeDueToDiscount ? "Pagado" : undefined,
-            date: new Date(),
-            veterinarianId: req.user._id,
-            ownerName: labExam.ownerName,
-            ownerPhone: labExam.ownerPhone,
-            paymentMethod: data.paymentMethodId,
-            paymentReference: data.paymentReference,
-          };
-        } else {
-          invoiceData = {
-            items: [
-              {
-                type: "labExam",
-                resourceId: labExam._id,
-                description: `Hemograma - ${labExam.patientName}`,
-                cost: finalTotal,
-                quantity: 1,
-              },
-            ],
-            currency: "USD",
-            total: finalTotal,
-            amountPaidUSD: 0,
-            amountPaidBs: 0,
-            paymentStatus: isFreeDueToDiscount ? "Pagado" : "Pendiente",
-            date: new Date(),
-            veterinarianId: req.user._id,
-          };
-
-          const patient = await Patient.findById(labExam.patientId);
-          if (patient) {
-            invoiceData.ownerId = patient.owner;
-            invoiceData.patientId = labExam.patientId;
-          }
-        }
-
-        const invoice = new Invoice(invoiceData);
-        await invoice.save();
-      } catch (invoiceError) {
-        console.error("Error al crear factura:", invoiceError);
-      }
-
-      res.status(201).json(labExam);
+      const result = await LabExamService.create(req.body, req.user._id.toString());
+      res.status(201).json(result);
     } catch (error: any) {
       console.error("Error en createLabExam:", error);
-      res.status(500).json("Error al crear el examen");
+      res.status(500).json({ msg: error.message || "Error al crear el examen" });
     }
   };
 
-  /* ---------- LISTAR ---------- */
   static getAllLabExams = async (req: Request, res: Response) => {
     try {
-      if (!req.user || !req.user._id) {
+      if (!req.user?._id) {
         return res.status(401).json({ msg: "Usuario no autenticado" });
       }
-
-      const exams = await LabExam.find({
-        vetId: req.user._id,
-      }).sort({ createdAt: -1 });
-
-      res.json(exams);
+      const examType = req.query.examType as string | undefined;
+      const result = await LabExamService.getAll(req.user._id.toString(), examType);
+      res.json(result);
     } catch (error: any) {
       console.error("Error en getAllLabExams:", error);
       res.status(500).json({ msg: "Error al obtener exámenes" });
     }
   };
 
-  /* ---------- OBTENER UNO ---------- */
   static getLabExamById = async (req: Request, res: Response) => {
     try {
-      if (!req.user || !req.user._id) {
+      if (!req.user?._id) {
         return res.status(401).json({ msg: "Usuario no autenticado" });
       }
-
-      const { id } = req.params;
-
-      const exam = await LabExam.findOne({
-        _id: id,
-        vetId: req.user._id,
-      });
-
-      if (!exam) {
-        return res.status(404).json({ msg: "Examen no encontrado o no autorizado" });
+      const result = await LabExamService.getById(req.params.id, req.user._id.toString());
+      if (!result) {
+        return res.status(404).json({ msg: "Examen no encontrado" });
       }
-
-      res.json(exam);
+      res.json(result);
     } catch (error: any) {
       console.error("Error en getLabExamById:", error);
       res.status(500).json({ msg: "Error al obtener examen" });
     }
   };
 
-  /* ---------- ACTUALIZAR ---------- */
   static updateLabExam = async (req: Request, res: Response) => {
     try {
-      if (!req.user || !req.user._id) {
+      if (!req.user?._id) {
         return res.status(401).json({ msg: "Usuario no autenticado" });
       }
-
-      const { id } = req.params;
-      const data = req.body;
-
-      if (
-        data.differentialCount &&
-        !validateDifferentialSum(data.differentialCount)
-      ) {
-        return res.status(400).json({
-          msg: "La suma del conteo diferencial no puede superar 100",
-        });
-      }
-
-      const existingExam = await LabExam.findOne({
-        _id: id,
-        vetId: req.user._id,
-      });
-
-      if (!existingExam) {
-        return res.status(404).json({ msg: "Examen no encontrado o no autorizado" });
-      }
-
-      const updated = await LabExam.findByIdAndUpdate(id, data, {
-        new: true,
-        runValidators: true,
-      });
-
-      res.json({
-        msg: "Examen actualizado correctamente",
-        labExam: updated,
-      });
+      const result = await LabExamService.update(req.params.id, req.body, req.user._id.toString());
+      res.json({ msg: "Examen actualizado correctamente", labExam: result });
     } catch (error: any) {
       console.error("Error en updateLabExam:", error);
-      res.status(500).json({ msg: "Error al actualizar examen" });
+      const status = error.message === "Examen no encontrado" ? 404 : 500;
+      res.status(status).json({ msg: error.message || "Error al actualizar" });
     }
   };
 
-  /* ---------- ELIMINAR ---------- */
   static deleteLabExam = async (req: Request, res: Response) => {
     try {
-      if (!req.user || !req.user._id) {
+      if (!req.user?._id) {
         return res.status(401).json({ msg: "Usuario no autenticado" });
       }
-
-      const { id } = req.params;
-
-      const exam = await LabExam.findOneAndDelete({
-        _id: id,
-        vetId: req.user._id,
-      });
-
-      if (!exam) {
-        return res.status(404).json({ msg: "Examen no encontrado o no autorizado" });
-      }
-
+      await LabExamService.delete(req.params.id, req.user._id.toString());
       res.json({ msg: "Examen eliminado correctamente" });
     } catch (error: any) {
       console.error("Error en deleteLabExam:", error);
-      res.status(500).json({ msg: "Error al eliminar examen" });
+      const status = error.message === "Examen no encontrado" ? 404 : 500;
+      res.status(status).json({ msg: error.message || "Error al eliminar" });
     }
   };
 
-  /* ---------- OBTENER POR PACIENTE ---------- */
   static getLabExamsByPatient = async (req: Request, res: Response) => {
     try {
-      if (!req.user || !req.user._id) {
+      if (!req.user?._id) {
         return res.status(401).json({ msg: "Usuario no autenticado" });
       }
-
-      const { patientId } = req.params;
-
-      const exams = await LabExam.find({
-        patientId,
-        vetId: req.user._id,
-      }).sort({ date: -1 });
-
-      res.json(exams);
+      const examType = req.query.examType as string | undefined;
+      const result = await LabExamService.getByPatient(
+        req.params.patientId, 
+        req.user._id.toString(), 
+        examType
+      );
+      res.json(result);
     } catch (error: any) {
       console.error("Error en getLabExamsByPatient:", error);
-      res.status(500).json({ msg: "Error al obtener exámenes del paciente" });
+      res.status(500).json({ msg: "Error al obtener exámenes" });
     }
   };
 }

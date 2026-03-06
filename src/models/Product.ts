@@ -1,7 +1,7 @@
 // src/models/Product.ts
 import mongoose, { Schema, Document, Types } from "mongoose";
 
-export type ProductCategory = "vacuna" | "desparasitante" | "medicamento" | "alimento" | "accesorio" | "otro";
+export type ProductCategory = "vacuna" | "desparasitante" | "medicamento" | "test" | "alimento" | "accesorio" | "otro";
 
 export interface IProduct extends Document {
   name: string;
@@ -23,7 +23,7 @@ export interface IProduct extends Document {
   
   // Estado
   active: boolean;
-  veterinarian: Types.ObjectId; // Dueño del producto
+  veterinarian: Types.ObjectId;
   
   createdAt: Date;
   updatedAt: Date;
@@ -36,7 +36,6 @@ const ProductSchema = new Schema(
       required: [true, "El nombre del producto es obligatorio"],
       trim: true,
       maxlength: [100, "El nombre no puede exceder 100 caracteres"],
-      // ⚠️ unique: true REMOVIDO → ya no es único global
     },
     description: {
       type: String,
@@ -47,7 +46,7 @@ const ProductSchema = new Schema(
       type: String,
       required: [true, "La categoría es obligatoria"],
       enum: {
-        values: ["vacuna", "desparasitante", "medicamento", "alimento", "accesorio", "otro"],
+        values: ["vacuna", "desparasitante", "medicamento", "test", "alimento", "accesorio", "otro"], 
         message: "Categoría no válida",
       },
     },
@@ -102,8 +101,7 @@ const ProductSchema = new Schema(
   }
 );
 
-// ✅ Índices actualizados
-ProductSchema.index({ name: 1, veterinarian: 1 }, { unique: true }); // Nombre único por veterinario
+ProductSchema.index({ name: 1, veterinarian: 1 }, { unique: true });
 ProductSchema.index({ category: 1 });
 ProductSchema.index({ veterinarian: 1 });
 
