@@ -8,13 +8,22 @@ import { checkCanCreate } from "../middleware/checkCanCreate";
 
 const router = Router();
 
+const VALID_CATEGORIES = [
+  "vacuna", 
+  "desparasitante", 
+  "medicamento", 
+  "test", 
+  "alimento", 
+  "accesorio", 
+  "otro"
+];
+
 router.use(authenticate);
 
 // ==================== RUTAS DE CONSULTA ====================
 
 router.get("/", ProductController.getAllProducts);
 router.get("/active", ProductController.getActiveProducts);
-// Nueva ruta para obtener productos con inventario
 router.get("/with-inventory", ProductController.getProductsWithInventory);
 router.get(
   "/:id",
@@ -34,7 +43,7 @@ router.post(
       .isString().withMessage("Debe ser texto")
       .trim().isLength({ max: 100 }).withMessage("Máximo 100 caracteres"),
     body("category")
-      .isIn(["vacuna", "desparasitante", "medicamento","test",  "alimento", "accesorio", "otro"])
+      .isIn(VALID_CATEGORIES)
       .withMessage("Categoría inválida"),
     body("salePrice")
       .isFloat({ min: 0 }).withMessage("Precio de venta inválido"),
@@ -80,7 +89,7 @@ router.put(
       .trim().isLength({ max: 100 }).withMessage("Máximo 100 caracteres"),
     body("category")
       .optional()
-      .isIn(["vacuna", "desparasitante", "medicamento", "alimento", "accesorio", "otro"])
+      .isIn(VALID_CATEGORIES)  // ✅ Ahora usa la constante
       .withMessage("Categoría inválida"),
     body("salePrice")
       .optional()
