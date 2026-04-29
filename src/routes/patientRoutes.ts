@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { handleInputErrors } from '../middleware/validation';
 import { PatientController } from '../controllers/PatientController';
-import { PatientHistoryController } from '../controllers/PatientHistoryController'; // <--- IMPORTAR ESTO
+import { PatientHistoryController } from '../controllers/PatientHistoryController'; // 
 import upload from '../middleware/upload';
 import { authenticate } from '../middleware/auth';
 import { checkCanCreate } from '../middleware/checkCanCreate';

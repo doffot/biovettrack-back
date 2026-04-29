@@ -10,14 +10,11 @@ export class MedicalOrderController {
     const orderData = req.body;
 
     try {
-      if (!req.user || !req.user._id) {
+      if (!req.user?._id) {
         return res.status(401).json({ msg: "Usuario no autenticado" });
       }
 
-      if (!patientId) {
-        return res.status(400).json({ msg: "ID de paciente es obligatorio" });
-      }
-
+      // Verificar que el paciente exista y pertenezca al veterinario
       const patient = await Patient.findOne({
         _id: patientId,
         mainVet: req.user._id,
@@ -27,9 +24,18 @@ export class MedicalOrderController {
         return res.status(404).json({ msg: "Paciente no encontrado o no autorizado" });
       }
 
-      // Validar que tenga al menos un estudio
-      if (!orderData.studies || orderData.studies.length === 0) {
-        return res.status(400).json({ msg: "Debe incluir al menos un estudio" });
+      // Validar que al menos una categoría tenga algún examen seleccionado o haya un examen especial
+      const categories = [
+        'hematology', 'coprology', 'urinalysis', 'cytology', 
+        'hormonal', 'skin', 'chemistry', 'cultures', 'antigenicTests'
+      ];
+      
+      const hasSelectedExams = categories.some(cat => 
+        Array.isArray(orderData[cat]) && orderData[cat].length > 0
+      );
+
+      if (!hasSelectedExams && !orderData.specialExams) {
+        return res.status(400).json({ msg: "Debe seleccionar al menos un examen médico" });
       }
 
       const medicalOrder = new MedicalOrder({
@@ -56,147 +62,103 @@ export class MedicalOrderController {
 
   /* ---------- OBTENER ÓRDENES POR PACIENTE ---------- */
   static getMedicalOrdersByPatient = async (req: Request, res: Response) => {
+    const { patientId } = req.params;
+
     try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: "Usuario no autenticado" });
-      }
+      if (!req.user?._id) return res.status(401).json({ msg: "No autorizado" });
 
-      const { patientId } = req.params;
-
-      const patient = await Patient.findOne({
-        _id: patientId,
-        mainVet: req.user._id,
-      });
-
-      if (!patient) {
-        return res.status(404).json({ msg: "Paciente no encontrado o no autorizado" });
-      }
+      // Validamos propiedad del paciente antes de soltar las órdenes
+      const patient = await Patient.findOne({ _id: patientId, mainVet: req.user._id });
+      if (!patient) return res.status(404).json({ msg: "Paciente no encontrado" });
 
       const medicalOrders = await MedicalOrder.find({ patientId })
-        .populate("consultationId", "consultationDate reasonForVisit")
         .sort({ issueDate: -1 });
 
       res.json({ medicalOrders });
-    } catch (error: any) {
-      console.error("Error en getMedicalOrdersByPatient:", error);
-      res.status(500).json({ msg: "Error al obtener órdenes médicas" });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ msg: "Error al obtener órdenes del paciente" });
     }
   };
 
   /* ---------- OBTENER TODAS LAS ÓRDENES DEL VETERINARIO ---------- */
   static getAllMedicalOrders = async (req: Request, res: Response) => {
     try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: "Usuario no autenticado" });
-      }
+      if (!req.user?._id) return res.status(401).json({ msg: "No autorizado" });
 
       const medicalOrders = await MedicalOrder.find({ veterinarianId: req.user._id })
         .populate("patientId", "name species breed")
-        .populate("consultationId", "consultationDate reasonForVisit")
         .sort({ issueDate: -1 });
 
       res.json({ medicalOrders });
-    } catch (error: any) {
-      console.error("Error en getAllMedicalOrders:", error);
-      res.status(500).json({ msg: "Error al obtener órdenes médicas" });
+    } catch (error) {
+      res.status(500).json({ msg: "Error al obtener todas las órdenes" });
     }
   };
 
   /* ---------- OBTENER ORDEN POR ID ---------- */
   static getMedicalOrderById = async (req: Request, res: Response) => {
     try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: "Usuario no autenticado" });
-      }
-
       const medicalOrder = await MedicalOrder.findById(req.params.id)
-        .populate("patientId", "name species breed owner")
-        .populate("consultationId", "consultationDate reasonForVisit");
+        .populate("patientId", "name species breed owner");
 
       if (!medicalOrder) {
         return res.status(404).json({ msg: "Orden médica no encontrada" });
       }
 
-      // Verificar que el veterinario sea el dueño de la orden
-      if (medicalOrder.veterinarianId.toString() !== req.user._id.toString()) {
-        return res.status(403).json({ msg: "No tienes permiso para ver esta orden" });
+      if (medicalOrder.veterinarianId.toString() !== req.user?._id.toString()) {
+        return res.status(403).json({ msg: "Acceso denegado" });
       }
 
       res.json({ medicalOrder });
-    } catch (error: any) {
-      console.error("Error en getMedicalOrderById:", error);
-      res.status(500).json({ msg: "Error al obtener orden médica" });
+    } catch (error) {
+      res.status(500).json({ msg: "Error al obtener la orden" });
     }
   };
 
   /* ---------- ACTUALIZAR ORDEN MÉDICA ---------- */
   static updateMedicalOrder = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const orderData = req.body;
 
     try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: "Usuario no autenticado" });
-      }
-
       const medicalOrder = await MedicalOrder.findById(id);
-      if (!medicalOrder) {
-        return res.status(404).json({ msg: "Orden médica no encontrada" });
+      
+      if (!medicalOrder) return res.status(404).json({ msg: "Orden no encontrada" });
+
+      if (medicalOrder.veterinarianId.toString() !== req.user?._id.toString()) {
+        return res.status(403).json({ msg: "No autorizado para editar esta orden" });
       }
 
-      // Verificar autorización
-      if (medicalOrder.veterinarianId.toString() !== req.user._id.toString()) {
-        return res.status(403).json({ msg: "No tienes permiso para actualizar esta orden" });
-      }
-
-      // Validar estudios si se envían
-      if (orderData.studies && orderData.studies.length === 0) {
-        return res.status(400).json({ msg: "Debe incluir al menos un estudio" });
-      }
-
-      const updatedOrder = await MedicalOrder.findByIdAndUpdate(id, orderData, {
+      const updatedOrder = await MedicalOrder.findByIdAndUpdate(id, req.body, {
         new: true,
         runValidators: true,
-      })
-        .populate("patientId", "name species breed")
-        .populate("consultationId", "consultationDate reasonForVisit");
+      }).populate("patientId", "name species breed");
 
       res.json({
         msg: "Orden médica actualizada correctamente",
         medicalOrder: updatedOrder,
       });
     } catch (error: any) {
-      if (error.name === "ValidationError") {
-        return res.status(400).json({ msg: error.message });
-      }
-      console.error("Error en updateMedicalOrder:", error);
-      res.status(500).json({ msg: "Error al actualizar orden médica" });
+      if (error.name === "ValidationError") return res.status(400).json({ msg: error.message });
+      res.status(500).json({ msg: "Error al actualizar la orden" });
     }
   };
 
   /* ---------- ELIMINAR ORDEN MÉDICA ---------- */
   static deleteMedicalOrder = async (req: Request, res: Response) => {
     try {
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ msg: "Usuario no autenticado" });
-      }
-
       const medicalOrder = await MedicalOrder.findById(req.params.id);
-      if (!medicalOrder) {
-        return res.status(404).json({ msg: "Orden médica no encontrada" });
+
+      if (!medicalOrder) return res.status(404).json({ msg: "Orden no encontrada" });
+
+      if (medicalOrder.veterinarianId.toString() !== req.user?._id.toString()) {
+        return res.status(403).json({ msg: "No autorizado" });
       }
 
-      // Verificar autorización
-      if (medicalOrder.veterinarianId.toString() !== req.user._id.toString()) {
-        return res.status(403).json({ msg: "No tienes permiso para eliminar esta orden" });
-      }
-
-      await MedicalOrder.findByIdAndDelete(req.params.id);
-
+      await medicalOrder.deleteOne(); // Usar deleteOne para activar middlewares si los tienes
       res.json({ msg: "Orden médica eliminada correctamente" });
-    } catch (error: any) {
-      console.error("Error en deleteMedicalOrder:", error);
-      res.status(500).json({ msg: error.message || "Error al eliminar orden médica" });
+    } catch (error) {
+      res.status(500).json({ msg: "Error al eliminar la orden" });
     }
   };
 }

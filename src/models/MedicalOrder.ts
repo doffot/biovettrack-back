@@ -1,99 +1,28 @@
-// src/models/MedicalOrder.ts
 import mongoose, { Schema, Document } from "mongoose";
 
-// Tipos
-export type StudyType = 
-  | 'ecografia' 
-  | 'radiografia' 
-  | 'laboratorio' 
-  | 'tomografia' 
-  | 'electrocardiograma'
-  | 'endoscopia'
-  | 'citologia'
-  | 'biopsia'
-  | 'otro';
+export type OrderStatus = 'pending' | 'completed' | 'cancelled';
 
-export type StudyPriority = 'normal' | 'urgente';
-
-// Interfaz para cada estudio
-export interface IStudy {
-  type: StudyType;
-  name: string;
-  region?: string;
-  reason: string;
-  priority: StudyPriority;
-  instructions?: string;
-}
-
-// Interfaz principal
 export interface IMedicalOrder extends Document {
   patientId: mongoose.Types.ObjectId;
   veterinarianId: mongoose.Types.ObjectId;
-  consultationId?: mongoose.Types.ObjectId;
+  status: OrderStatus;
   issueDate: Date;
-  studies: IStudy[];
-  clinicalHistory?: string;
+  // Categorías de la imagen
+  hematology: string[];
+  coprology: string[];
+  urinalysis: string[];
+  cytology: string[];
+  hormonal: string[];
+  skin: string[];
+  chemistry: string[];
+  cultures: string[];
+  antigenicTests: string[];
+  specialExams?: string;
+  observations?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Sub-esquema para estudios
-const StudySchema = new Schema(
-  {
-    type: {
-      type: String,
-      required: [true, "El tipo de estudio es obligatorio"],
-      enum: {
-        values: [
-          'ecografia',
-          'radiografia',
-          'laboratorio',
-          'tomografia',
-          'electrocardiograma',
-          'endoscopia',
-          'citologia',
-          'biopsia',
-          'otro'
-        ],
-        message: "Tipo de estudio no válido",
-      },
-    },
-    name: {
-      type: String,
-      required: [true, "El nombre del estudio es obligatorio"],
-      trim: true,
-      maxlength: [150, "Máximo 150 caracteres"],
-    },
-    region: {
-      type: String,
-      trim: true,
-      maxlength: [100, "Máximo 100 caracteres"],
-    },
-    reason: {
-      type: String,
-      required: [true, "El motivo es obligatorio"],
-      trim: true,
-      maxlength: [300, "Máximo 300 caracteres"],
-    },
-    priority: {
-      type: String,
-      required: [true, "La prioridad es obligatoria"],
-      enum: {
-        values: ['normal', 'urgente'],
-        message: "Debe ser 'normal' o 'urgente'",
-      },
-      default: 'normal',
-    },
-    instructions: {
-      type: String,
-      trim: true,
-      maxlength: [300, "Máximo 300 caracteres"],
-    },
-  },
-  { _id: false }
-);
-
-// Esquema principal
 const MedicalOrderSchema = new Schema(
   {
     patientId: {
@@ -106,41 +35,32 @@ const MedicalOrderSchema = new Schema(
       ref: "Veterinarian",
       required: [true, "La orden debe estar vinculada a un veterinario"],
     },
-    consultationId: {
-      type: Schema.Types.ObjectId,
-      ref: "Consultation",
-      required: false,
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'cancelled'],
+      default: 'pending',
     },
     issueDate: {
       type: Date,
-      required: [true, "La fecha de emisión es obligatoria"],
       default: Date.now,
     },
-    studies: {
-      type: [StudySchema],
-      required: [true, "Debe incluir al menos un estudio"],
-      validate: {
-        validator: function (v: IStudy[]) {
-          return v && v.length > 0;
-        },
-        message: "La orden debe tener al menos un estudio",
-      },
-    },
-    clinicalHistory: {
-      type: String,
-      trim: true,
-      maxlength: [1000, "Máximo 1000 caracteres"],
-    },
+    // Arrays de strings para los checkboxes
+    hematology: { type: [String], enum: ['Hematología Completa', 'Despistaje Hemoparásitos', 'Contaje Plaquetario', 'PT', 'PTT'] },
+    coprology: { type: [String], enum: ['Evaluación Fresca', 'Flotación', 'Sangre Oculta en Heces', 'Determ. Polisacáridos en Heces', 'Heces Coloreadas'] },
+    urinalysis: { type: [String], enum: ['Tira Reactiva', 'Sedimento Fresco', 'Sedimento Coloreado'] },
+    cytology: { type: [String] }, // Dejé este abierto o puedes poner el enum largo anterior
+    hormonal: { type: [String], enum: ['Cortisol', 'T3', 'T4'] },
+    skin: { type: [String], enum: ['Raspado Cutáneo', 'Tricograma', 'Cinta Adhesiva'] },
+    chemistry: { type: [String] }, // Enum largo de químicos
+    cultures: { type: [String], enum: ['Bacteriológico', 'Micológico', 'Urocultivo', 'Coprocultivo', 'Hemocultivo'] },
+    antigenicTests: { type: [String] }, // Enum de virus
+    specialExams: { type: String, trim: true },
+    observations: { type: String, trim: true },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Índices
 MedicalOrderSchema.index({ patientId: 1, issueDate: -1 });
-MedicalOrderSchema.index({ veterinarianId: 1 });
-MedicalOrderSchema.index({ consultationId: 1 });
 
 const MedicalOrder = mongoose.model<IMedicalOrder>("MedicalOrder", MedicalOrderSchema);
 export default MedicalOrder;
